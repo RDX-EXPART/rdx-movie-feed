@@ -31,12 +31,6 @@
       "required": false
     }
   },
-  "formation": {
-    "web": {
-      "quantity": 1,
-      "size": "eco"
-    }
-  },
   "buildpacks": [
     {
       "url": "heroku/python"

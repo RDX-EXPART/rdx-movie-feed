@@ -60,8 +60,10 @@ Running automatic RSS downloads directly inside a heavy download engine (`rdx-te
 
 ### Method 1: Deploy to Koyeb (Recommended, Free 24/7)
 
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/RDX-EXPART/rdx-movie-feed&branch=main&name=rdx-movie-feed)
+
 1. Sign in to [Koyeb](https://www.koyeb.com/).
-2. Click **Create App** and select **GitHub**.
+2. Click **Create App** and select **GitHub** (or click the button above).
 3. Choose the repository: `RDX-EXPART/rdx-movie-feed`.
 4. Leave the builder as **Dockerfile** (or Buildpack).
 5. Add the following **Environment Variables**:
@@ -79,7 +81,7 @@ Running automatic RSS downloads directly inside a heavy download engine (`rdx-te
 
 ### Method 2: Deploy to Heroku
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/RDX-EXPART/rdx-movie-feed)
 
 1. Create a new app on [Heroku](https://dashboard.heroku.com/).
 2. In the **Deploy** tab, connect your GitHub repository `RDX-EXPART/rdx-movie-feed`.
