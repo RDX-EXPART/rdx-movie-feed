@@ -45,34 +45,15 @@ def format_caption(item: MovieItem) -> str:
 
 
 def build_keyboard(item: MovieItem) -> dict:
-    """Construct inline keyboard with Open Website and Multiple Leech Bot buttons."""
-    buttons = []
-
-    # Row 1: Direct Link to post + Instant Share to Leech Bot
+    """Construct inline keyboard with exactly two stacked buttons: Open Website and Send to Leech Bot."""
     encoded_url = quote(item.url, safe="")
     share_url = f"https://t.me/share/url?url={encoded_url}"
-    row1 = [
-        {"text": "🌐 Open Website", "url": item.url},
-        {"text": "🚀 Send to Leech Bot", "url": share_url},
-    ]
-    buttons.append(row1)
-
-    # Row 2+: Leech via Bot buttons (supports multiple bots)
-    if LEECH_BOTS:
-        if len(LEECH_BOTS) == 1:
-            bot = LEECH_BOTS[0]
-            buttons.append([{"text": f"📥 Leech via @{bot}", "url": f"https://t.me/{bot}"}])
-        else:
-            leech_row = []
-            for idx, bot in enumerate(LEECH_BOTS, 1):
-                leech_row.append({"text": f"📥 Leech (Bot {idx})", "url": f"https://t.me/{bot}"})
-                if len(leech_row) == 2:
-                    buttons.append(leech_row)
-                    leech_row = []
-            if leech_row:
-                buttons.append(leech_row)
-
-    return {"inline_keyboard": buttons}
+    return {
+        "inline_keyboard": [
+            [{"text": "🌐 Open Website", "url": item.url}],
+            [{"text": "🚀 Send to Leech Bot", "url": share_url}],
+        ]
+    }
 
 
 async def post_movie_to_channel(item: MovieItem) -> bool:
