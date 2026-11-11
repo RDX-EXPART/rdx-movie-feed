@@ -15,12 +15,18 @@ from config import (
     CHANNEL_ID,
     CHECK_INTERVAL,
     DATABASE_URL,
+    ENABLE_EXTRAFLIX,
     ENABLE_FOURKHDHUB,
+    ENABLE_HDHUB4U,
     ENABLE_MLSBD,
     ENABLE_MOVIESMOD,
     ENABLE_SKYMOVIES,
     ENABLE_VEGAMOVIES,
+    EXTRAFLIX_HUB_URL,
+    EXTRAFLIX_URL,
     FOURKHDHUB_URL,
+    HDHUB4U_HUB_URL,
+    HDHUB4U_URL,
     INITIAL_MARK_SEEN,
     LEECH_BOTS,
     MLSBD_FEED,
@@ -34,6 +40,8 @@ from config import (
 from database import db
 from poster import post_movie_to_channel
 from scrapers import fetch_all_sources
+from scrapers.extraflix import resolve_active_extraflix_domain
+from scrapers.hdhub4u import resolve_active_hdhub4u_domain
 from scrapers.moviesmod import resolve_active_moviesmod_domain
 from scrapers.skymovieshd import resolve_active_domain
 from scrapers.vegamovies import resolve_active_vega_domain
@@ -219,6 +227,8 @@ async def generate_sources_text() -> str:
     vega_domain = await resolve_active_vega_domain()
     mm_domain = await resolve_active_moviesmod_domain()
     sky_domain = await resolve_active_domain()
+    ef_domain = await resolve_active_extraflix_domain()
+    hd_domain = await resolve_active_hdhub4u_domain()
     return (
         "🌐 <b>Active Monitored Sources & Domains</b>\n\n"
         f"🇧🇩 <b>MLSBD:</b> <code>{MLSBD_FEED}</code>\n"
@@ -228,7 +238,11 @@ async def generate_sources_text() -> str:
         f"⚡ <b>MoviesMod:</b> <code>{mm_domain}</code>\n"
         f"   └ <i>Auto-resolver: {MODLIST_HUB_URL}</i>\n"
         f"☁️ <b>SkyMoviesHD:</b> <code>{sky_domain}</code>\n"
-        f"   └ <i>Auto-resolver: {SKYBAP_URL}</i>\n\n"
+        f"   └ <i>Auto-resolver: {SKYBAP_URL}</i>\n"
+        f"🍿 <b>ExtraFlix:</b> <code>{ef_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {EXTRAFLIX_HUB_URL}</i>\n"
+        f"🎯 <b>HDHub4u:</b> <code>{hd_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {HDHUB4U_HUB_URL}</i>\n\n"
         "💡 <i>All domains auto-detect from official hubs, but can also be manually overridden in config!</i>"
     )
 

@@ -49,11 +49,15 @@ VEGAMOVIES_URL = os.environ.get("VEGAMOVIES_URL", "").strip().rstrip("/")
 FOURKHDHUB_URL = os.environ.get("FOURKHDHUB_URL", "https://4khdhub.one").strip().rstrip("/")
 MOVIESMOD_URL = os.environ.get("MOVIESMOD_URL", "").strip().rstrip("/")
 SKYMOVIES_URL = os.environ.get("SKYMOVIES_URL", "").strip().rstrip("/")
+EXTRAFLIX_URL = os.environ.get("EXTRAFLIX_URL", "").strip().rstrip("/")
+HDHUB4U_URL = os.environ.get("HDHUB4U_URL", "").strip().rstrip("/")
 
 # Domain Announcement Hubs (Auto-detection for rotating domains)
 VEGA_HUB_URL = os.environ.get("VEGA_HUB_URL", "https://1vegamovies.buzz").strip().rstrip("/")
 MODLIST_HUB_URL = os.environ.get("MODLIST_HUB_URL", "https://www.modlist.in/?type=hollywood").strip().rstrip("/")
 SKYBAP_URL = os.environ.get("SKYBAP_URL", "https://skybap.site").strip().rstrip("/")
+EXTRAFLIX_HUB_URL = os.environ.get("EXTRAFLIX_HUB_URL", "https://extraflix.foo").strip().rstrip("/")
+HDHUB4U_HUB_URL = os.environ.get("HDHUB4U_HUB_URL", "https://hdhub4u.deal").strip().rstrip("/")
 
 # Source Toggles
 ENABLE_MLSBD = _bool(os.environ.get("ENABLE_MLSBD", "true"))
@@ -61,6 +65,8 @@ ENABLE_VEGAMOVIES = _bool(os.environ.get("ENABLE_VEGAMOVIES", "true"))
 ENABLE_FOURKHDHUB = _bool(os.environ.get("ENABLE_FOURKHDHUB", "true"))
 ENABLE_MOVIESMOD = _bool(os.environ.get("ENABLE_MOVIESMOD", "true"))
 ENABLE_SKYMOVIES = _bool(os.environ.get("ENABLE_SKYMOVIES", "true"))
+ENABLE_EXTRAFLIX = _bool(os.environ.get("ENABLE_EXTRAFLIX", "true"))
+ENABLE_HDHUB4U = _bool(os.environ.get("ENABLE_HDHUB4U", "true"))
 
 # On first boot with an empty database, do not spam the channel with past movies.
 # Mark existing items as already posted.

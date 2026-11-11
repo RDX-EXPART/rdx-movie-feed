@@ -3,14 +3,18 @@ import logging
 from typing import List
 
 from config import (
+    ENABLE_EXTRAFLIX,
     ENABLE_FOURKHDHUB,
+    ENABLE_HDHUB4U,
     ENABLE_MLSBD,
     ENABLE_MOVIESMOD,
     ENABLE_SKYMOVIES,
     ENABLE_VEGAMOVIES,
 )
 from scrapers.base import MovieItem
+from scrapers.extraflix import scrape_extraflix
 from scrapers.fourkhdhub import scrape_fourkhdhub
+from scrapers.hdhub4u import scrape_hdhub4u
 from scrapers.mlsbd import scrape_mlsbd
 from scrapers.moviesmod import scrape_moviesmod
 from scrapers.skymovieshd import scrape_skymovieshd
@@ -39,6 +43,12 @@ async def fetch_all_sources() -> List[MovieItem]:
     if ENABLE_SKYMOVIES:
         tasks.append(scrape_skymovieshd())
         source_names.append("SkyMoviesHD")
+    if ENABLE_EXTRAFLIX:
+        tasks.append(scrape_extraflix())
+        source_names.append("ExtraFlix")
+    if ENABLE_HDHUB4U:
+        tasks.append(scrape_hdhub4u())
+        source_names.append("HDHub4u")
 
     if not tasks:
         LOGGER.warning("No movie sources are enabled in config!")

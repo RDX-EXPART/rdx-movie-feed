@@ -1,9 +1,9 @@
 {
   "name": "RDX Movie Feed Bot",
-  "description": "Automatic RSS Movie Feed Bot for Telegram Channel (MLSBD, VegaMovies, 4K-HDHub, MoviesMod, SkyMoviesHD)",
+  "description": "Automatic RSS Movie Feed Bot for Telegram Channel (MLSBD, VegaMovies, 4K-HDHub, MoviesMod, SkyMoviesHD, ExtraFlix, HDHub4u)",
   "repository": "https://github.com/RDX-EXPART/rdx-movie-feed",
   "logo": "https://telegram.org/img/t_logo.png",
-  "keywords": ["telegram", "movie", "rss", "feed", "mlsbd", "vegamovies", "bot"],
+  "keywords": ["telegram", "movie", "rss", "feed", "mlsbd", "vegamovies", "extraflix", "hdhub4u", "bot"],
   "env": {
     "BOT_TOKEN": {
       "description": "Telegram Bot Token from @BotFather",
@@ -15,6 +15,14 @@
     },
     "LEECH_BOT_USERNAME": {
       "description": "Optional Leech Bot username(s) separated by comma (e.g. RDX_Leech_Bot, RDX_VIP_Bot)",
+      "required": false
+    },
+    "EXTRAFLIX_URL": {
+      "description": "Optional manual ExtraFlix domain (leave empty to auto-detect from extraflix.foo)",
+      "required": false
+    },
+    "HDHUB4U_URL": {
+      "description": "Optional manual HDHub4u domain (leave empty to auto-detect from hdhub4u.deal / host API)",
       "required": false
     },
     "SKYMOVIES_URL": {
