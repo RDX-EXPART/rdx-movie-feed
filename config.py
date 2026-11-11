@@ -45,12 +45,14 @@ PORT = _int(os.environ.get("PORT", "8080"), 8080)
 
 # Website Domains / RSS Feeds
 MLSBD_FEED = os.environ.get("MLSBD_FEED", "https://mlsbd.co/feed/").strip()
-VEGAMOVIES_URL = os.environ.get("VEGAMOVIES_URL", "https://vegamovies.lease").strip().rstrip("/")
+VEGAMOVIES_URL = os.environ.get("VEGAMOVIES_URL", "").strip().rstrip("/")
 FOURKHDHUB_URL = os.environ.get("FOURKHDHUB_URL", "https://4khdhub.one").strip().rstrip("/")
-MOVIESMOD_URL = os.environ.get("MOVIESMOD_URL", "https://moviesmod.tw").strip().rstrip("/")
-
-# SkyMoviesHD: Set manual domain or leave empty for auto-detection via SkyBap
+MOVIESMOD_URL = os.environ.get("MOVIESMOD_URL", "").strip().rstrip("/")
 SKYMOVIES_URL = os.environ.get("SKYMOVIES_URL", "").strip().rstrip("/")
+
+# Domain Announcement Hubs (Auto-detection for rotating domains)
+VEGA_HUB_URL = os.environ.get("VEGA_HUB_URL", "https://1vegamovies.buzz").strip().rstrip("/")
+MODLIST_HUB_URL = os.environ.get("MODLIST_HUB_URL", "https://www.modlist.in/?type=hollywood").strip().rstrip("/")
 SKYBAP_URL = os.environ.get("SKYBAP_URL", "https://skybap.site").strip().rstrip("/")
 
 # Source Toggles

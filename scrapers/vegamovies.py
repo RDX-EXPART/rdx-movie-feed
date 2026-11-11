@@ -1,24 +1,26 @@
 import logging
 import re
-from typing import List
+import time
+from typing import List, Optional
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
-from config import VEGAMOVIES_URL
+from config import VEGA_HUB_URL, VEGAMOVIES_URL
 from scrapers.base import MovieItem, fetch_html
 
 LOGGER = logging.getLogger("ScraperVega")
 
-# Fallback mirrors in case primary domain changes or is down
-CANDIDATE_MIRRORS = [
-    VEGAMOVIES_URL,
+_CACHED_VEGA_DOMAIN: Optional[str] = None
+_CACHE_EXPIRE_VEGA: float = 0
+CACHE_TTL = 3600  # 1 hour cache
+
+FALLBACK_MIRRORS = [
     "https://vegamovies.lease",
+    "https://1vegamovies.tw",
     "https://vegamovis.skin",
     "https://vegamovies.domains",
 ]
-# Remove duplicates while preserving order
-KNOWN_MIRRORS = list(dict.fromkeys([m.rstrip("/") for m in CANDIDATE_MIRRORS if m]))
 
 
 def extract_qualities(text: str) -> str:
@@ -26,6 +28,56 @@ def extract_qualities(text: str) -> str:
     if matches:
         return " | ".join(dict.fromkeys([m.upper() for m in matches]))
     return "HD"
+
+
+async def resolve_active_vega_domain() -> str:
+    """Auto-detect the latest VegaMovies domain via 1vegamovies.buzz or user config."""
+    global _CACHED_VEGA_DOMAIN, _CACHE_EXPIRE_VEGA
+
+    # 1. Manual override from config
+    if VEGAMOVIES_URL:
+        return VEGAMOVIES_URL
+
+    # 2. In-memory cache
+    now = time.time()
+    if _CACHED_VEGA_DOMAIN and now < _CACHE_EXPIRE_VEGA:
+        return _CACHED_VEGA_DOMAIN
+
+    LOGGER.info(f"Auto-detecting active VegaMovies domain from hub {VEGA_HUB_URL}...")
+    try:
+        html = await fetch_html(VEGA_HUB_URL, timeout=8, use_jina_fallback=False)
+        if html:
+            soup = BeautifulSoup(html, "html.parser")
+            for a in soup.find_all("a"):
+                href = a.get("href", "")
+                if "vegamovies" in href.lower() and href.startswith("http"):
+                    detected = href.rstrip("/")
+                    LOGGER.info(f"Auto-detected VegaMovies domain from hub: {detected}")
+                    _CACHED_VEGA_DOMAIN = detected
+                    _CACHE_EXPIRE_VEGA = now + CACHE_TTL
+                    return detected
+
+            # Regex search in raw HTML text
+            m = re.search(r"https?://[a-zA-Z0-9\.\-]*vegamovies\.[a-zA-Z0-9\.\-]+", html, re.I)
+            if m:
+                detected = m.group(0).rstrip("/")
+                LOGGER.info(f"Auto-detected VegaMovies domain via regex: {detected}")
+                _CACHED_VEGA_DOMAIN = detected
+                _CACHE_EXPIRE_VEGA = now + CACHE_TTL
+                return detected
+    except Exception as e:
+        LOGGER.warning(f"Failed to auto-detect from Vega hub: {e}")
+
+    # 3. Test fallback mirrors
+    for mirror in FALLBACK_MIRRORS:
+        test_html = await fetch_html(mirror, timeout=6, use_jina_fallback=False)
+        if test_html:
+            LOGGER.info(f"Using working fallback mirror for VegaMovies: {mirror}")
+            _CACHED_VEGA_DOMAIN = mirror
+            _CACHE_EXPIRE_VEGA = now + CACHE_TTL
+            return mirror
+
+    return FALLBACK_MIRRORS[0]
 
 
 async def _scrape_single_mirror(base_url: str) -> List[MovieItem]:
@@ -36,11 +88,9 @@ async def _scrape_single_mirror(base_url: str) -> List[MovieItem]:
     if html:
         try:
             soup = BeautifulSoup(html, "html.parser")
-            # 1. Try finding movie links in grid or article
             selectors = "div.movies-grid a, .content-section a, article, div.post, .post-item, div.blog-post"
             containers = soup.select(selectors)
 
-            # If containers empty, search all relevant links
             candidate_links = []
             if containers:
                 for c in containers:
@@ -78,12 +128,10 @@ async def _scrape_single_mirror(base_url: str) -> List[MovieItem]:
                     if poster:
                         poster = urljoin(base_url, poster)
 
-                    # Extract title from alt if informative
                     alt = img.get("alt", "").strip()
                     if alt and len(alt) > 5 and not alt.isdigit() and "download now" not in alt.lower():
                         title = alt
 
-                # If title not found in img alt, try a['title'] or heading
                 if not title:
                     if a.get("title") and len(a["title"].strip()) > 5:
                         title = a["title"].strip()
@@ -143,18 +191,19 @@ async def _scrape_single_mirror(base_url: str) -> List[MovieItem]:
 
 
 async def scrape_vegamovies() -> List[MovieItem]:
-    """Scrape latest items from VegaMovies with automatic mirror rotation."""
-    LOGGER.info(f"Checking VegaMovies releases (Primary: {KNOWN_MIRRORS[0]})...")
+    """Scrape latest items from VegaMovies with auto-detection and mirror rotation."""
+    active_domain = await resolve_active_vega_domain()
+    mirrors_to_try = list(dict.fromkeys([active_domain] + FALLBACK_MIRRORS))
 
     items = []
     working_mirror = None
 
-    for mirror in KNOWN_MIRRORS:
+    for mirror in mirrors_to_try:
         try:
             items = await _scrape_single_mirror(mirror)
             if items:
                 working_mirror = mirror
-                LOGGER.info(f"Successfully scraped {len(items)} items from VegaMovies mirror: {working_mirror}")
+                LOGGER.info(f"Successfully scraped {len(items)} items from VegaMovies: {working_mirror}")
                 break
         except Exception as e:
             LOGGER.warning(f"VegaMovies mirror {mirror} failed: {e}. Trying next mirror...")

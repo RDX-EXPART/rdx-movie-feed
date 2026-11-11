@@ -23,15 +23,19 @@ from config import (
     INITIAL_MARK_SEEN,
     LEECH_BOTS,
     MLSBD_FEED,
+    MODLIST_HUB_URL,
     MOVIESMOD_URL,
     SKYBAP_URL,
     SKYMOVIES_URL,
+    VEGA_HUB_URL,
     VEGAMOVIES_URL,
 )
 from database import db
 from poster import post_movie_to_channel
 from scrapers import fetch_all_sources
+from scrapers.moviesmod import resolve_active_moviesmod_domain
 from scrapers.skymovieshd import resolve_active_domain
+from scrapers.vegamovies import resolve_active_vega_domain
 from web import start_web_server
 
 # Configure logging
@@ -211,16 +215,20 @@ async def generate_status_text() -> str:
 
 
 async def generate_sources_text() -> str:
+    vega_domain = await resolve_active_vega_domain()
+    mm_domain = await resolve_active_moviesmod_domain()
     sky_domain = await resolve_active_domain()
     return (
         "🌐 <b>Active Monitored Sources & Domains</b>\n\n"
         f"🇧🇩 <b>MLSBD:</b> <code>{MLSBD_FEED}</code>\n"
-        f"⭐ <b>VegaMovies:</b> <code>{VEGAMOVIES_URL}</code>\n"
+        f"⭐ <b>VegaMovies:</b> <code>{vega_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {VEGA_HUB_URL}</i>\n"
         f"💎 <b>4K-HDHub:</b> <code>{FOURKHDHUB_URL}</code>\n"
-        f"⚡ <b>MoviesMod:</b> <code>{MOVIESMOD_URL}</code>\n"
+        f"⚡ <b>MoviesMod:</b> <code>{mm_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {MODLIST_HUB_URL}</i>\n"
         f"☁️ <b>SkyMoviesHD:</b> <code>{sky_domain}</code>\n"
         f"   └ <i>Auto-resolver: {SKYBAP_URL}</i>\n\n"
-        "💡 <i>All domains can be customized via .env or Config Vars!</i>"
+        "💡 <i>All domains auto-detect from official hubs, but can also be manually overridden in config!</i>"
     )
 
 
