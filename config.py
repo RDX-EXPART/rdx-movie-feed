@@ -23,8 +23,11 @@ CHANNEL_ID = os.environ.get("CHANNEL_ID", "").strip()
 if CHANNEL_ID and CHANNEL_ID.lstrip("-").isdigit():
     CHANNEL_ID = int(CHANNEL_ID)
 
-# Optional bot username for Leech button (e.g., 'RDX_Leech_Bot')
-LEECH_BOT_USERNAME = os.environ.get("LEECH_BOT_USERNAME", "").strip().lstrip("@")
+# Multiple Leech Bots Support (comma-separated usernames, with or without @)
+# e.g., 'RDX_Leech_Bot, RDX_VIP_Bot, RDX_Backup_Bot'
+raw_leech_bots = os.environ.get("LEECH_BOT_USERNAMES", "").strip() or os.environ.get("LEECH_BOT_USERNAME", "").strip()
+LEECH_BOTS = [b.strip().lstrip("@") for b in raw_leech_bots.split(",") if b.strip().lstrip("@")]
+LEECH_BOT_USERNAME = LEECH_BOTS[0] if LEECH_BOTS else ""
 
 # Check interval in seconds (Default: 300 seconds = 5 minutes)
 CHECK_INTERVAL = _int(os.environ.get("CHECK_INTERVAL", "300"), 300)
@@ -45,7 +48,10 @@ MLSBD_FEED = os.environ.get("MLSBD_FEED", "https://mlsbd.co/feed/").strip()
 VEGAMOVIES_URL = os.environ.get("VEGAMOVIES_URL", "https://vegamovies.lease").strip().rstrip("/")
 FOURKHDHUB_URL = os.environ.get("FOURKHDHUB_URL", "https://4khdhub.one").strip().rstrip("/")
 MOVIESMOD_URL = os.environ.get("MOVIESMOD_URL", "https://moviesmod.tw").strip().rstrip("/")
-SKYMOVIES_URL = os.environ.get("SKYMOVIES_URL", "https://skymovieshd.green").strip().rstrip("/")
+
+# SkyMoviesHD: Set manual domain or leave empty for auto-detection via SkyBap
+SKYMOVIES_URL = os.environ.get("SKYMOVIES_URL", "").strip().rstrip("/")
+SKYBAP_URL = os.environ.get("SKYBAP_URL", "https://skybap.site").strip().rstrip("/")
 
 # Source Toggles
 ENABLE_MLSBD = _bool(os.environ.get("ENABLE_MLSBD", "true"))

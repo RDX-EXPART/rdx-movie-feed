@@ -139,11 +139,13 @@ python3 main.py
 |---|---|---|---|
 | `BOT_TOKEN` | **Yes** | — | Telegram Bot token from @BotFather |
 | `CHANNEL_ID` | **Yes** | — | Telegram Channel ID or `@ChannelUsername` |
-| `LEECH_BOT_USERNAME` | No | — | Username of your leech bot for inline button |
+| `LEECH_BOT_USERNAMES` | No | — | Leech Bot username(s) separated by comma (e.g. `Bot1, Bot2`) |
 | `DATABASE_URL` | No | `""` | MongoDB Atlas URI. If omitted, uses local SQLite |
 | `ADMIN_IDS` | No | `""` | Comma-separated admin Telegram user IDs |
 | `CHECK_INTERVAL` | No | `300` | Time interval between scrapes (in seconds) |
 | `PORT` | No | `8080` | HTTP port for Koyeb/Heroku health-check |
+| `VEGAMOVIES_URL` | No | `https://vegamovies.lease` | Primary VegaMovies domain |
+| `SKYMOVIES_URL` | No | `""` (Auto) | Manual SkyMoviesHD domain (leave empty to auto-detect from `skybap.site`) |
 | `ENABLE_MLSBD` | No | `true` | Toggle MLSBD source |
 | `ENABLE_VEGAMOVIES` | No | `true` | Toggle VegaMovies source |
 | `ENABLE_FOURKHDHUB` | No | `true` | Toggle 4K-HDHub source |
@@ -153,13 +155,19 @@ python3 main.py
 
 ---
 
-## 🤖 Admin Commands
+## 🤖 Admin Commands & Interactive Control Panel
 
-Send these commands directly to your bot in private chat:
+The bot includes an interactive Menu button and private chat Control Panel:
 
-- `/start` or `/help` — Displays bot runtime information and status.
-- `/status` — Shows total indexed movies, active scraping sources, database type, and uptime.
-- `/check` or `/force` — Immediately triggers an on-demand check for new releases across all sources.
+- `/start` or `/panel` — Opens the interactive Control Panel with inline buttons:
+  - `[ 📊 Bot Status ]` — Displays real-time database, channel, and source statistics.
+  - `[ 🔄 Check Now ]` — Triggers an instant release scan across all providers.
+  - `[ 🌐 Active Domains ]` — Lists all current working provider domains.
+  - `[ 🔁 Restart Bot ]` — Gracefully reboots the bot process.
+- `/status` — Quick status report.
+- `/check` or `/force` — Immediately triggers an on-demand check for new releases.
+- `/sources` — Displays current working domains (including auto-detected SkyMoviesHD).
+- `/restart` — Gracefully restarts the bot process.
 
 ---
 

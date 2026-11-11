@@ -3,10 +3,11 @@ import json
 import logging
 from html import escape
 from typing import Optional
+from urllib.parse import quote
 
 import aiohttp
 
-from config import BOT_TOKEN, CHANNEL_ID, LEECH_BOT_USERNAME
+from config import BOT_TOKEN, CHANNEL_ID, LEECH_BOTS
 from scrapers.base import MovieItem
 from scrapers.mlsbd import fetch_mlsbd_poster
 
@@ -44,17 +45,32 @@ def format_caption(item: MovieItem) -> str:
 
 
 def build_keyboard(item: MovieItem) -> dict:
-    """Construct inline keyboard with Open Website and optional Leech Bot button."""
+    """Construct inline keyboard with Open Website and Multiple Leech Bot buttons."""
     buttons = []
-    # Row 1: Direct Link to post
-    row1 = [{"text": "🌐 Open Website", "url": item.url}]
+
+    # Row 1: Direct Link to post + Instant Share to Leech Bot
+    encoded_url = quote(item.url, safe="")
+    share_url = f"https://t.me/share/url?url={encoded_url}"
+    row1 = [
+        {"text": "🌐 Open Website", "url": item.url},
+        {"text": "🚀 Send to Leech Bot", "url": share_url},
+    ]
     buttons.append(row1)
 
-    # Row 2: Leech via Bot button if configured
-    if LEECH_BOT_USERNAME:
-        bot_url = f"https://t.me/{LEECH_BOT_USERNAME}"
-        row2 = [{"text": "📥 Leech via Bot", "url": bot_url}]
-        buttons.append(row2)
+    # Row 2+: Leech via Bot buttons (supports multiple bots)
+    if LEECH_BOTS:
+        if len(LEECH_BOTS) == 1:
+            bot = LEECH_BOTS[0]
+            buttons.append([{"text": f"📥 Leech via @{bot}", "url": f"https://t.me/{bot}"}])
+        else:
+            leech_row = []
+            for idx, bot in enumerate(LEECH_BOTS, 1):
+                leech_row.append({"text": f"📥 Leech (Bot {idx})", "url": f"https://t.me/{bot}"})
+                if len(leech_row) == 2:
+                    buttons.append(leech_row)
+                    leech_row = []
+            if leech_row:
+                buttons.append(leech_row)
 
     return {"inline_keyboard": buttons}
 

@@ -14,7 +14,11 @@
       "required": true
     },
     "LEECH_BOT_USERNAME": {
-      "description": "Optional Leech Bot username for [📥 Leech via Bot] button (e.g. RDX_Leech_Bot)",
+      "description": "Optional Leech Bot username(s) separated by comma (e.g. RDX_Leech_Bot, RDX_VIP_Bot)",
+      "required": false
+    },
+    "SKYMOVIES_URL": {
+      "description": "Optional manual SkyMoviesHD domain (leave empty to auto-detect from skybap.site)",
       "required": false
     },
     "DATABASE_URL": {
