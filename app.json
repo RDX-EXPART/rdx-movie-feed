@@ -1,0 +1,45 @@
+{
+  "name": "RDX Movie Feed Bot",
+  "description": "Automatic RSS Movie Feed Bot for Telegram Channel (MLSBD, VegaMovies, 4K-HDHub, MoviesMod, SkyMoviesHD)",
+  "repository": "https://github.com/RDX-EXPART/rdx-movie-feed",
+  "logo": "https://telegram.org/img/t_logo.png",
+  "keywords": ["telegram", "movie", "rss", "feed", "mlsbd", "vegamovies", "bot"],
+  "env": {
+    "BOT_TOKEN": {
+      "description": "Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "CHANNEL_ID": {
+      "description": "Telegram Channel ID or Username (e.g. -1001234567890 or @MyChannel)",
+      "required": true
+    },
+    "LEECH_BOT_USERNAME": {
+      "description": "Optional Leech Bot username for [📥 Leech via Bot] button (e.g. RDX_Leech_Bot)",
+      "required": false
+    },
+    "DATABASE_URL": {
+      "description": "MongoDB connection URI (Recommended for Heroku/Koyeb to persist posted state across restarts)",
+      "required": false
+    },
+    "ADMIN_IDS": {
+      "description": "Your Telegram User ID (comma separated) for /check and /status commands",
+      "required": false
+    },
+    "CHECK_INTERVAL": {
+      "description": "Interval in seconds to check for new movies (Default: 300 = 5 minutes)",
+      "value": "300",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
