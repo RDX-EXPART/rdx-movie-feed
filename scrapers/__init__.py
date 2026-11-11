@@ -3,21 +3,33 @@ import logging
 from typing import List
 
 from config import (
+    ENABLE_BOLLYFLIX,
+    ENABLE_CINEVOOD,
+    ENABLE_DOTMOVIES,
     ENABLE_EXTRAFLIX,
     ENABLE_FOURKHDHUB,
     ENABLE_HDHUB4U,
+    ENABLE_KATDRAMA,
+    ENABLE_KATMOVIEHD,
     ENABLE_MLSBD,
     ENABLE_MOVIESMOD,
     ENABLE_SKYMOVIES,
+    ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
 )
 from scrapers.base import MovieItem
+from scrapers.bollyflix import scrape_bollyflix
+from scrapers.cinevood import scrape_cinevood
+from scrapers.dotmovies import scrape_dotmovies
 from scrapers.extraflix import scrape_extraflix
 from scrapers.fourkhdhub import scrape_fourkhdhub
 from scrapers.hdhub4u import scrape_hdhub4u
+from scrapers.katdrama import scrape_katdrama
+from scrapers.katmoviehd import scrape_katmoviehd
 from scrapers.mlsbd import scrape_mlsbd
 from scrapers.moviesmod import scrape_moviesmod
 from scrapers.skymovieshd import scrape_skymovieshd
+from scrapers.toonworld import scrape_toonworld
 from scrapers.vegamovies import scrape_vegamovies
 
 LOGGER = logging.getLogger("ScraperManager")
@@ -49,6 +61,24 @@ async def fetch_all_sources() -> List[MovieItem]:
     if ENABLE_HDHUB4U:
         tasks.append(scrape_hdhub4u())
         source_names.append("HDHub4u")
+    if ENABLE_KATMOVIEHD:
+        tasks.append(scrape_katmoviehd())
+        source_names.append("KatMovieHD")
+    if ENABLE_KATDRAMA:
+        tasks.append(scrape_katdrama())
+        source_names.append("KatDrama")
+    if ENABLE_DOTMOVIES:
+        tasks.append(scrape_dotmovies())
+        source_names.append("DotMovies")
+    if ENABLE_BOLLYFLIX:
+        tasks.append(scrape_bollyflix())
+        source_names.append("BollyFlix")
+    if ENABLE_CINEVOOD:
+        tasks.append(scrape_cinevood())
+        source_names.append("CineVood")
+    if ENABLE_TOONWORLD:
+        tasks.append(scrape_toonworld())
+        source_names.append("ToonWorld4All")
 
     if not tasks:
         LOGGER.warning("No movie sources are enabled in config!")
@@ -66,3 +96,4 @@ async def fetch_all_sources() -> List[MovieItem]:
 
     LOGGER.info(f"Total collected items from all sources: {len(all_items)}")
     return all_items
+

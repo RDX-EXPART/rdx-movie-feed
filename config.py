@@ -51,6 +51,12 @@ MOVIESMOD_URL = os.environ.get("MOVIESMOD_URL", "").strip().rstrip("/")
 SKYMOVIES_URL = os.environ.get("SKYMOVIES_URL", "").strip().rstrip("/")
 EXTRAFLIX_URL = os.environ.get("EXTRAFLIX_URL", "").strip().rstrip("/")
 HDHUB4U_URL = os.environ.get("HDHUB4U_URL", "").strip().rstrip("/")
+KATMOVIEHD_URL = os.environ.get("KATMOVIEHD_URL", "https://new2.katmoviehd.top").strip().rstrip("/")
+KATDRAMA_URL = os.environ.get("KATDRAMA_URL", "https://new.katdrama.my").strip().rstrip("/")
+DOTMOVIES_URL = os.environ.get("DOTMOVIES_URL", "https://dotmoviess.co.in").strip().rstrip("/")
+BOLLYFLIX_URL = os.environ.get("BOLLYFLIX_URL", "https://bollyflix.church").strip().rstrip("/")
+CINEVOOD_URL = os.environ.get("CINEVOOD_URL", "https://one.1cinevood.beer").strip().rstrip("/")
+TOONWORLD_URL = os.environ.get("TOONWORLD_URL", "https://toonworld4all.me").strip().rstrip("/")
 
 # Domain Announcement Hubs (Auto-detection for rotating domains)
 VEGA_HUB_URL = os.environ.get("VEGA_HUB_URL", "https://1vegamovies.buzz").strip().rstrip("/")
@@ -58,6 +64,10 @@ MODLIST_HUB_URL = os.environ.get("MODLIST_HUB_URL", "https://www.modlist.in/?typ
 SKYBAP_URL = os.environ.get("SKYBAP_URL", "https://skybap.site").strip().rstrip("/")
 EXTRAFLIX_HUB_URL = os.environ.get("EXTRAFLIX_HUB_URL", "https://extraflix.foo").strip().rstrip("/")
 HDHUB4U_HUB_URL = os.environ.get("HDHUB4U_HUB_URL", "https://hdhub4u.deal").strip().rstrip("/")
+KATMOVIEHD_HUB_URL = os.environ.get("KATMOVIEHD_HUB_URL", "https://katmovieshd.net").strip().rstrip("/")
+DOTMOVIES_HUB_URL = os.environ.get("DOTMOVIES_HUB_URL", "https://dotmovies.army").strip().rstrip("/")
+BOLLYFLIX_HUB_URL = os.environ.get("BOLLYFLIX_HUB_URL", "https://bollyflix.baby").strip().rstrip("/")
+CINEVOOD_HUB_URL = os.environ.get("CINEVOOD_HUB_URL", "https://cinevood.garden").strip().rstrip("/")
 
 # Source Toggles
 ENABLE_MLSBD = _bool(os.environ.get("ENABLE_MLSBD", "true"))
@@ -67,6 +77,12 @@ ENABLE_MOVIESMOD = _bool(os.environ.get("ENABLE_MOVIESMOD", "true"))
 ENABLE_SKYMOVIES = _bool(os.environ.get("ENABLE_SKYMOVIES", "true"))
 ENABLE_EXTRAFLIX = _bool(os.environ.get("ENABLE_EXTRAFLIX", "true"))
 ENABLE_HDHUB4U = _bool(os.environ.get("ENABLE_HDHUB4U", "true"))
+ENABLE_KATMOVIEHD = _bool(os.environ.get("ENABLE_KATMOVIEHD", "true"))
+ENABLE_KATDRAMA = _bool(os.environ.get("ENABLE_KATDRAMA", "true"))
+ENABLE_DOTMOVIES = _bool(os.environ.get("ENABLE_DOTMOVIES", "true"))
+ENABLE_BOLLYFLIX = _bool(os.environ.get("ENABLE_BOLLYFLIX", "true"))
+ENABLE_CINEVOOD = _bool(os.environ.get("ENABLE_CINEVOOD", "true"))
+ENABLE_TOONWORLD = _bool(os.environ.get("ENABLE_TOONWORLD", "true"))
 
 # On first boot with an empty database, do not spam the channel with past movies.
 # Mark existing items as already posted.

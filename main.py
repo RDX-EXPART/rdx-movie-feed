@@ -9,18 +9,34 @@ from typing import Optional
 
 import aiohttp
 
+from html import escape
+from urllib.parse import quote
+import uuid
+
 from config import (
     ADMIN_IDS,
+    BOLLYFLIX_HUB_URL,
+    BOLLYFLIX_URL,
     BOT_TOKEN,
     CHANNEL_ID,
     CHECK_INTERVAL,
+    CINEVOOD_HUB_URL,
+    CINEVOOD_URL,
     DATABASE_URL,
+    DOTMOVIES_HUB_URL,
+    DOTMOVIES_URL,
+    ENABLE_BOLLYFLIX,
+    ENABLE_CINEVOOD,
+    ENABLE_DOTMOVIES,
     ENABLE_EXTRAFLIX,
     ENABLE_FOURKHDHUB,
     ENABLE_HDHUB4U,
+    ENABLE_KATDRAMA,
+    ENABLE_KATMOVIEHD,
     ENABLE_MLSBD,
     ENABLE_MOVIESMOD,
     ENABLE_SKYMOVIES,
+    ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
     EXTRAFLIX_HUB_URL,
     EXTRAFLIX_URL,
@@ -28,23 +44,36 @@ from config import (
     HDHUB4U_HUB_URL,
     HDHUB4U_URL,
     INITIAL_MARK_SEEN,
+    KATDRAMA_URL,
+    KATMOVIEHD_HUB_URL,
+    KATMOVIEHD_URL,
     LEECH_BOTS,
+    LEECH_BOT_USERNAME,
     MLSBD_FEED,
     MODLIST_HUB_URL,
     MOVIESMOD_URL,
     SKYBAP_URL,
     SKYMOVIES_URL,
+    TOONWORLD_URL,
     VEGA_HUB_URL,
     VEGAMOVIES_URL,
 )
 from database import db
 from poster import post_movie_to_channel
 from scrapers import fetch_all_sources
+from scrapers.base import MovieItem
+from scrapers.bollyflix import resolve_active_bollyflix_domain
+from scrapers.cinevood import resolve_active_cinevood_domain
+from scrapers.dotmovies import resolve_active_dotmovies_domain
 from scrapers.extraflix import resolve_active_extraflix_domain
 from scrapers.hdhub4u import resolve_active_hdhub4u_domain
+from scrapers.katdrama import resolve_active_katdrama_domain
+from scrapers.katmoviehd import resolve_active_katmoviehd_domain
 from scrapers.moviesmod import resolve_active_moviesmod_domain
 from scrapers.skymovieshd import resolve_active_domain
+from scrapers.toonworld import resolve_active_toonworld_domain
 from scrapers.vegamovies import resolve_active_vega_domain
+from search import search_all_sites
 from web import start_web_server
 
 # Configure logging
@@ -66,6 +95,7 @@ async def setup_bot_commands(session: aiohttp.ClientSession):
         return
     commands = [
         {"command": "start", "description": "Open bot control panel"},
+        {"command": "search", "description": "Search movies, series & anime"},
         {"command": "status", "description": "View system status & statistics"},
         {"command": "check", "description": "Force check for new releases now"},
         {"command": "sources", "description": "Show monitored sites & domains"},
@@ -81,6 +111,77 @@ async def setup_bot_commands(session: aiohttp.ClientSession):
                 LOGGER.warning(f"setMyCommands failed: {data.get('description')}")
     except Exception as e:
         LOGGER.error(f"Error registering menu commands: {e}")
+
+
+# ── Search Engine State & UI ──────────────────────────────────────────────────
+SEARCH_CACHE = {}
+SEARCH_TTL = 1800  # 30 minutes
+
+
+def clean_search_cache():
+    now = time.time()
+    for sid in list(SEARCH_CACHE.keys()):
+        if now - SEARCH_CACHE[sid].get("ts", 0) > SEARCH_TTL:
+            SEARCH_CACHE.pop(sid, None)
+
+
+def format_search_card(item: MovieItem, index: int, total: int, query: str) -> str:
+    site_emojis = {
+        "MLSBD": "🇧🇩",
+        "VegaMovies": "⭐",
+        "4K-HDHub": "💎",
+        "MoviesMod": "⚡",
+        "SkyMoviesHD": "☁️",
+        "ExtraFlix": "🍿",
+        "HDHub4u": "🎯",
+        "KatMovieHD": "🦁",
+        "KatDrama": "🎭",
+        "DotMovies": "🎪",
+        "BollyFlix": "🎬",
+        "CineVood": "🍿",
+        "ToonWorld4All": "🌀",
+    }
+    emoji = site_emojis.get(item.site, "🎬")
+    title = escape(item.clean_title())
+    quality = escape(item.quality or "HD")
+    site = escape(item.site)
+    q_esc = escape(query)
+
+    return (
+        "🔍 <b>RDX Premium Movie Search</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🎬 <b>{title}</b>\n\n"
+        f"🏷 <b>Source:</b> {emoji} <b>{site}</b>\n"
+        f"🎞 <b>Quality:</b> <code>{quality}</code>\n"
+        f"🔗 <b>Post Link:</b> <code>{escape(item.url)}</code>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📌 <i>Result {index + 1} of {total} for:</i> <b>\"{q_esc}\"</b>\n"
+        "⚡ <i>Select an action below:</i>"
+    )
+
+
+def build_search_keyboard(item: MovieItem, index: int, total: int, search_id: str) -> dict:
+    encoded_url = quote(item.url, safe="")
+    if LEECH_BOT_USERNAME:
+        leech_url = f"https://t.me/{LEECH_BOT_USERNAME}?start={encoded_url}"
+    else:
+        leech_url = f"https://t.me/share/url?url={encoded_url}"
+
+    kb = [
+        [{"text": "🌐 Open Website", "url": item.url}],
+        [{"text": "⚡ Send to Leech Bot", "url": leech_url}],
+    ]
+
+    nav_row = []
+    if index > 0:
+        nav_row.append({"text": "◀️ Prev", "callback_data": f"s_nav:{search_id}:{index-1}"})
+    nav_row.append({"text": f"📄 {index+1}/{total}", "callback_data": "s_noop"})
+    if index < total - 1:
+        nav_row.append({"text": "Next ▶️", "callback_data": f"s_nav:{search_id}:{index+1}"})
+
+    kb.append(nav_row)
+    kb.append([{"text": "❌ Close", "callback_data": f"s_close:{search_id}"}])
+    return {"inline_keyboard": kb}
 
 
 async def check_restart_notification(session: aiohttp.ClientSession):
@@ -202,6 +303,22 @@ async def generate_status_text() -> str:
         sources.append("MoviesMod")
     if ENABLE_SKYMOVIES:
         sources.append("SkyMoviesHD")
+    if ENABLE_EXTRAFLIX:
+        sources.append("ExtraFlix")
+    if ENABLE_HDHUB4U:
+        sources.append("HDHub4u")
+    if ENABLE_KATMOVIEHD:
+        sources.append("KatMovieHD")
+    if ENABLE_KATDRAMA:
+        sources.append("KatDrama")
+    if ENABLE_DOTMOVIES:
+        sources.append("DotMovies")
+    if ENABLE_BOLLYFLIX:
+        sources.append("BollyFlix")
+    if ENABLE_CINEVOOD:
+        sources.append("CineVood")
+    if ENABLE_TOONWORLD:
+        sources.append("ToonWorld4All")
 
     last_time_str = (
         time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(LAST_CHECK_TIME))
@@ -219,6 +336,7 @@ async def generate_status_text() -> str:
         f"🤖 <b>Leech Bots:</b> {bots_str}\n"
         f"🕒 <b>Last Check:</b> {last_time_str}\n"
         f"⏱ <b>Interval:</b> {CHECK_INTERVAL}s\n"
+        f"🔍 <b>Search Engine:</b> Active across all 13 sites\n"
         f"🗄 <b>DB Type:</b> {'MongoDB Atlas' if DATABASE_URL else 'SQLite (Local)'}"
     )
 
@@ -229,6 +347,13 @@ async def generate_sources_text() -> str:
     sky_domain = await resolve_active_domain()
     ef_domain = await resolve_active_extraflix_domain()
     hd_domain = await resolve_active_hdhub4u_domain()
+    km_domain = await resolve_active_katmoviehd_domain()
+    kd_domain = await resolve_active_katdrama_domain()
+    dm_domain = await resolve_active_dotmovies_domain()
+    bf_domain = await resolve_active_bollyflix_domain()
+    cv_domain = await resolve_active_cinevood_domain()
+    tw_domain = await resolve_active_toonworld_domain()
+
     return (
         "🌐 <b>Active Monitored Sources & Domains</b>\n\n"
         f"🇧🇩 <b>MLSBD:</b> <code>{MLSBD_FEED}</code>\n"
@@ -242,7 +367,17 @@ async def generate_sources_text() -> str:
         f"🍿 <b>ExtraFlix:</b> <code>{ef_domain}</code>\n"
         f"   └ <i>Auto-resolver: {EXTRAFLIX_HUB_URL}</i>\n"
         f"🎯 <b>HDHub4u:</b> <code>{hd_domain}</code>\n"
-        f"   └ <i>Auto-resolver: {HDHUB4U_HUB_URL}</i>\n\n"
+        f"   └ <i>Auto-resolver: {HDHUB4U_HUB_URL}</i>\n"
+        f"🦁 <b>KatMovieHD:</b> <code>{km_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {KATMOVIEHD_HUB_URL}</i>\n"
+        f"🎭 <b>KatDrama:</b> <code>{kd_domain}</code>\n"
+        f"🎪 <b>DotMovies:</b> <code>{dm_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {DOTMOVIES_HUB_URL}</i>\n"
+        f"🎬 <b>BollyFlix:</b> <code>{bf_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {BOLLYFLIX_HUB_URL}</i>\n"
+        f"🍿 <b>CineVood:</b> <code>{cv_domain}</code>\n"
+        f"   └ <i>Auto-resolver: {CINEVOOD_HUB_URL}</i>\n"
+        f"🌀 <b>ToonWorld4All:</b> <code>{tw_domain}</code>\n\n"
         "💡 <i>All domains auto-detect from official hubs, but can also be manually overridden in config!</i>"
     )
 
@@ -394,6 +529,48 @@ async def bot_command_poller():
                                 if not is_admin:
                                     continue
                                 await restart_bot(session, cb_chat_id, update_id=update["update_id"])
+                            elif cb_data.startswith("s_nav:"):
+                                parts = cb_data.split(":")
+                                if len(parts) == 3:
+                                    search_id, target_idx = parts[1], int(parts[2])
+                                    s_data = SEARCH_CACHE.get(search_id)
+                                    if s_data and 0 <= target_idx < len(s_data["items"]):
+                                        item = s_data["items"][target_idx]
+                                        caption = format_search_card(item, target_idx, len(s_data["items"]), s_data["query"])
+                                        reply_markup = build_search_keyboard(item, target_idx, len(s_data["items"]), search_id)
+
+                                        # Try editMessageCaption first, else editMessageText
+                                        edit_cap_url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageCaption"
+                                        cap_payload = {
+                                            "chat_id": cb_chat_id,
+                                            "message_id": cb_msg_id,
+                                            "caption": caption,
+                                            "parse_mode": "HTML",
+                                            "reply_markup": reply_markup,
+                                        }
+                                        async with session.post(edit_cap_url, json=cap_payload) as cap_resp:
+                                            if cap_resp.status != 200:
+                                                edit_txt_url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText"
+                                                txt_payload = {
+                                                    "chat_id": cb_chat_id,
+                                                    "message_id": cb_msg_id,
+                                                    "text": caption,
+                                                    "parse_mode": "HTML",
+                                                    "reply_markup": reply_markup,
+                                                }
+                                                await session.post(edit_txt_url, json=txt_payload)
+                                continue
+
+                            elif cb_data.startswith("s_close:"):
+                                parts = cb_data.split(":")
+                                if len(parts) == 2:
+                                    SEARCH_CACHE.pop(parts[1], None)
+                                del_url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage"
+                                await session.post(del_url, json={"chat_id": cb_chat_id, "message_id": cb_msg_id})
+                                continue
+
+                            elif cb_data == "s_noop":
+                                continue
                             continue
 
                         # 2. Handle Text Messages
@@ -470,6 +647,108 @@ async def bot_command_poller():
                                 )
                                 continue
                             await restart_bot(session, chat_id, update_id=update["update_id"])
+
+                        elif text.startswith(("/search", "/s")):
+                            clean_search_cache()
+                            cmd_parts = text.split(maxsplit=1)
+                            if len(cmd_parts) == 1:
+                                help_search = (
+                                    "🔍 <b>RDX Multi-Platform Movie Search</b>\n\n"
+                                    "💡 <b>Usage:</b>\n"
+                                    "<code>/search &lt;movie or series name&gt;</code>\n"
+                                    "<i>or short alias:</i> <code>/s Avengers</code>\n\n"
+                                    "🌐 <b>Supported Platforms:</b>\n"
+                                    "• KatMovieHD (4K UHD) • KatDrama (K-Drama & Asian)\n"
+                                    "• DotMovies • BollyFlix (Bollywood & Dual Audio)\n"
+                                    "• CineVood / FilmyZilla • ToonWorld4All (Anime)\n"
+                                    "• VegaMovies • MoviesMod • ExtraFlix • HDHub4u\n"
+                                    "• MLSBD • 4K-HDHub • SkyMoviesHD\n\n"
+                                    "⚡ <i>Instant interactive cards with direct Leech Bot launch!</i>"
+                                )
+                                await session.post(
+                                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                                    json={"chat_id": chat_id, "text": help_search, "parse_mode": "HTML"},
+                                )
+                                continue
+
+                            query = cmd_parts[1].strip()
+                            wait_msg_id = None
+                            try:
+                                wait_res = await session.post(
+                                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                                    json={
+                                        "chat_id": chat_id,
+                                        "text": f"🔍 <i>Searching across all platforms for</i> <b>\"{escape(query)}\"</b>...",
+                                        "parse_mode": "HTML",
+                                    },
+                                )
+                                wait_data = await wait_res.json()
+                                if wait_data.get("ok"):
+                                    wait_msg_id = wait_data["result"]["message_id"]
+                            except Exception:
+                                pass
+
+                            items = await search_all_sites(query, max_total=24)
+
+                            if wait_msg_id:
+                                try:
+                                    await session.post(
+                                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                                        json={"chat_id": chat_id, "message_id": wait_msg_id},
+                                    )
+                                except Exception:
+                                    pass
+
+                            if not items:
+                                await session.post(
+                                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                                    json={
+                                        "chat_id": chat_id,
+                                        "text": f"❌ <b>No results found for:</b> <i>\"{escape(query)}\"</i>\n💡 <i>Try searching with a shorter title or different spelling!</i>",
+                                        "parse_mode": "HTML",
+                                    },
+                                )
+                                continue
+
+                            search_id = str(uuid.uuid4())[:8]
+                            SEARCH_CACHE[search_id] = {"query": query, "items": items, "ts": time.time()}
+
+                            first_item = items[0]
+                            caption = format_search_card(first_item, 0, len(items), query)
+                            reply_markup = build_search_keyboard(first_item, 0, len(items), search_id)
+
+                            posted = False
+                            if first_item.poster:
+                                photo_payload = {
+                                    "chat_id": chat_id,
+                                    "photo": first_item.poster,
+                                    "caption": caption,
+                                    "parse_mode": "HTML",
+                                    "reply_markup": reply_markup,
+                                }
+                                try:
+                                    async with session.post(
+                                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+                                        json=photo_payload,
+                                    ) as p_resp:
+                                        p_data = await p_resp.json()
+                                        if p_data.get("ok"):
+                                            posted = True
+                                except Exception:
+                                    posted = False
+
+                            if not posted:
+                                msg_payload = {
+                                    "chat_id": chat_id,
+                                    "text": caption,
+                                    "parse_mode": "HTML",
+                                    "reply_markup": reply_markup,
+                                }
+                                await session.post(
+                                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                                    json=msg_payload,
+                                )
+                            continue
 
             except Exception as e:
                 LOGGER.debug(f"Poller error: {e}")
