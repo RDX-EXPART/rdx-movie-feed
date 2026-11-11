@@ -1,121 +1,167 @@
-# 🎬 RDX Movie Feed Bot (Telegram RSS Auto-Poster)
+<h1 align="center">🎬 RDX Movie Feed Bot</h1>
 
-একটি শক্তিশালী, অত্যন্ত দ্রুত এবং সম্পূর্ণ স্বয়ংক্রিয় **Movie & Web-Series RSS Feed Bot**। এটি বিভিন্ন জনপ্রিয় মুভি সাইট প্রতিনিয়ত মনিটর করে এবং কোনো নতুন মুভি বা ওয়েব সিরিজ আপলোড হওয়ামাত্রই হাই-রেজ্যুলিউশন পোস্টার, টাইটেল, কোয়ালিটি এবং ডাইরেক্ট লিঙ্ক সহ আপনার টেলিগ্রাম চ্যানেলে পোস্ট করে!
+<p align="center">
+  <b>High-speed, automated multi-source movie release monitor and Telegram channel auto-poster.</b>
+</p>
 
----
-
-## 🌟 সমর্থিত সাইটসমূহ (Supported Movie Sources)
-
-1. **MLSBD** (`mlsbd.co`) - অফিশিয়াল ওয়ার্ডপ্রেস আরএসএস ফিড + হাই-রেজ্যুলিউশন পোস্টার।
-2. **VegaMovies** (`vegamovies`) - লেটেস্ট রিলিজ, ডুয়েল অডিও ও ওয়েব সিরিজ।
-3. **4K-HDHub** (`4khdhub.one`) - আল্ট্রা এইচডি 4K, 2160p, 1080p HEVC, HDR এবং রিমাক্স রিলিজ।
-4. **MoviesMod** (`moviesmod.tw`) - বলিউড, হলিউড ও ওটিটি সিরিজ রিলিজ।
-5. **SkyMoviesHD** (`skymovieshd.green`) - বাংলা, হিন্দি, তামিল, তেলেগু ও সাউথ ইন্ডিয়ান ডাবড মুভি।
-
----
-
-## 💡 কেন এটি আলাদা বটে রাখা নিরাপদ? (Server Load & Bandwidth Safety)
-
-আপনার **RDX-Technology** লিজ বটে যদি সরাসরি অটোমেটিক ডাউনলোড চালু করা হতো, তবে প্রতিবার নতুন মুভি বা সিরিজ আপলোড হলে (যেমন একসাথে 480p, 720p, 1080p, 4K অথবা ১০টি এপিসোড) সার্ভার একসাথেই সব ফাইল ডাউনলোড ও আপলোড শুরু করে দিত। এর ফলে:
-- সার্ভারের RAM এবং CPU ১০০% হয়ে বট ক্র্যাশ (Out of Memory) করত।
-- সার্ভারের ডিস্ক দ্রুত ফুল হয়ে যেত এবং ব্যান্ডউইথ শেষ হয়ে যেত।
-- টেলিগ্রাম ফ্লাড-ওয়েট (FloodWait) দিয়ে বট ব্লক বা ব্যান করতে পারত।
-
-**RDX Movie Feed Bot** আলাদা রাখার সুবিধা:
-- এটি কোনো ফাইল ডাউনলোড করে না, শুধু হালকা মেটাডাটা ও পোস্টার টেলিগ্রাম চ্যানেলে সেন্ড করে।
-- Koyeb বা Heroku-তে ০% CPU ও প্রায় শূন্য RAM ব্যবহারে ২৪/৭ নির্বিঘ্নে চলে।
-- চ্যানেলের প্রতিটি মুভি পোস্টের নিচে **`[📥 Leech via Bot]`** বাটন থাকে। ফলে ইউজার বা আপনি আপনার ইচ্ছামতো যে কোয়ালিটি প্রয়োজন (যেমন শুধু 720p বা 1080p), সেটিতে ক্লিক করলেই লীচ বটের মাধ্যমে ডাউনলোড শুরু হবে!
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-blue.svg" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/Platform-Koyeb%20%7C%20Heroku%20%7C%20Docker-green.svg" alt="Platforms">
+  <img src="https://img.shields.io/badge/Database-MongoDB%20%7C%20SQLite-orange.svg" alt="Database">
+  <img src="https://img.shields.io/badge/Telegram-Bot%20API-informational.svg" alt="Telegram Bot API">
+  <img src="https://img.shields.io/badge/License-MIT-lightgrey.svg" alt="License">
+</p>
 
 ---
 
-## 🚀 ডিপ্লয়মেন্ট গাইড (Deployment Instructions)
+## 📖 Overview
 
-### ১. টেলিগ্রাম বট ও চ্যানেল তৈরি
-1. [@BotFather](https://t.me/BotFather)-এ গিয়ে `/newbot` দিয়ে একটি নতুন টেলিগ্রাম বট তৈরি করুন এবং `BOT_TOKEN` সংগ্রহ করুন।
-2. আপনার টেলিগ্রাম চ্যানেল তৈরি করুন এবং বটটিকে চ্যানেলের **Admin** বানান (অবশ্যই **Post Messages** পারমিশন অন রাখুন)।
-3. আপনার চ্যানেলের ইউজারনেম (যেমন `@MyMovieChannel`) অথবা চ্যানেল আইডি (যেমন `-1001234567890`) সংগ্রহ করুন।
+**RDX Movie Feed Bot** is a lightweight, asynchronous background scraper designed to track the latest movie and web-series uploads from popular release platforms. Whenever a new release is published, the bot automatically formats a Telegram post card featuring the high-resolution poster, title, video resolutions, publication date, direct website links, and an optional **`[📥 Leech via Bot]`** inline button for instant 1-click downloading through your personal Leech Bot.
 
 ---
 
-### ২. Koyeb-এ ডিপ্লয় করার নিয়ম (বিনামূল্যে ২৪/৭)
+## 🌟 Key Features
 
-Koyeb হলো বর্তমান সময়ে টেলিগ্রাম বট হোস্টিংয়ের জন্য সবচেয়ে জনপ্রিয় এবং নির্ভরযোগ্য ক্লাউড প্ল্যাটফর্ম।
-
-1. [Koyeb.com](https://www.koyeb.com)-এ একটি একাউন্ট তৈরি করে লগইন করুন।
-2. **Create App** এ ক্লিক করুন।
-3. **GitHub** অপশন সিলেক্ট করুন এবং আপনার রিপোজিটরি `RDX-EXPART/rdx-movie-feed` সিলেক্ট করুন।
-4. **Builder** হিসেবে `Dockerfile` অথবা `Buildpack` সিলেক্ট থাকবে।
-5. **Environment Variables** সেকশনে গিয়ে নিচের ভ্যারিয়েবলগুলো যোগ করুন:
-   - `BOT_TOKEN`: আপনার বটের টোকেন।
-   - `CHANNEL_ID`: আপনার চ্যানেলের আইডি বা ইউজারনেম (যেমন `-1001234567890`)।
-   - `LEECH_BOT_USERNAME`: আপনার মেইন লীচ বটের ইউজারনেম (যেমন `RDX_Leech_Bot`)।
-   - `DATABASE_URL`: MongoDB Atlas ক্লাউড কানেকশন ইউআরএল (যাতে Koyeb রিস্টার্ট হলেও হিস্ট্রি ডাটাবেজ মুছে না যায়)।
-   - `PORT`: `8080` (Koyeb হেলথ চেক পোর্টের জন্য)।
-   - `CHECK_INTERVAL`: `300` (প্রতি ৫ মিনিট পর পর চেক করবে)।
-6. **Deploy** বাটনে ক্লিক করুন। ২ মিনিটের মধ্যে আপনার বট লাইভ হয়ে যাবে!
-
----
-
-### ৩. Heroku-এ ডিপ্লয় করার নিয়ম
-
-1. [Heroku.com](https://www.heroku.com)-এ লগইন করুন।
-2. **New** -> **Create New App**-এ ক্লিক করে একটি অ্যাপ নাম দিন।
-3. **Deploy** ট্যাবে গিয়ে **GitHub** সিলেক্ট করে `RDX-EXPART/rdx-movie-feed` কানেক্ট করুন।
-4. **Settings** -> **Reveal Config Vars**-এ গিয়ে নিচের ভ্যারিয়েবলগুলো অ্যাড করুন:
-   - `BOT_TOKEN`: আপনার টেলিগ্রাম বটের টোকেন।
-   - `CHANNEL_ID`: চ্যানেলের আইডি (যেমন `-1001234567890`)।
-   - `LEECH_BOT_USERNAME`: আপনার লীচ বটের নাম।
-   - `DATABASE_URL`: MongoDB Atlas ইউআরএল।
-   - `CHECK_INTERVAL`: `300`।
-5. **Resources** ট্যাবে গিয়ে `web` ডাইনো অন করুন (`python3 main.py`)।
+- **Multi-Source Scraping**: Concurrently scrapes releases from top entertainment portals:
+  - **MLSBD** (Native WordPress XML Feed)
+  - **VegaMovies** (Dual Audio, Hindi Dubbed & Web Series)
+  - **4K-HDHub** (4K UHD, 2160p, 1080p, HDR & HEVC releases)
+  - **MoviesMod** (Latest OTT Series & Regional Movies)
+  - **SkyMoviesHD** (Bengali, South Indian Dubbed & Multi-audio)
+- **High-Resolution Poster Extraction**: Automatically parses TMDb, CDN, and WordPress media embeds.
+- **Intelligent Deduplication**:
+  - Remembers published items so the channel is never spammed with duplicates.
+  - Initial Boot Guard: On first startup, marks existing catalog items as seen and only broadcasts brand-new releases.
+- **Persistent Cloud Database**: Supports **MongoDB Atlas** for persistence across Koyeb / Heroku dyno restarts, with an automatic fallback to local SQLite.
+- **Built-in Web Server**: Runs a lightweight HTTP server on `0.0.0.0:$PORT` with `/health` endpoints to keep Koyeb and Heroku health checks alive 24/7.
+- **Zero Server Overhead**: Extremely low RAM (< 45MB) and CPU consumption.
+- **Admin Control**: Interact directly with the bot via `/status` and `/check` commands.
 
 ---
 
-### ৪. লোকাল পিসি বা নিজস্ব VPS-এ রান করার নিয়ম
+## 🎯 Architecture: Why a Separate Feed Bot?
+
+Running automatic RSS downloads directly inside a heavy download engine (`rdx-technology`) often causes severe bottlenecks:
+- When a new title is posted, multiple qualities (`480p`, `720p`, `1080p`, `4K`) or entire seasons (10+ episodes) get queued simultaneously, exhausting disk space, RAM, and bandwidth.
+- Telegram frequently issues **FloodWait** penalties when bombarded with multiple simultaneous uploads.
+
+**The Solution:**
+**RDX Movie Feed Bot** acts as an ultra-light sentinel. It publishes beautiful preview cards with an **`[📥 Leech via Bot]`** button to your channel. Subscribers or administrators can selectively trigger the download of only the exact resolution they want, keeping server resources completely safe.
+
+---
+
+## 🚀 Deployment Guide
+
+### Prerequisites
+1. **Telegram Bot Token**: Get one from [@BotFather](https://t.me/BotFather).
+2. **Channel ID**: Add your bot to your Telegram Channel as an **Administrator** with the **"Post Messages"** permission enabled. Note your channel username (e.g., `@MyChannel`) or channel ID (e.g., `-1001234567890`).
+
+---
+
+### Method 1: Deploy to Koyeb (Recommended, Free 24/7)
+
+1. Sign in to [Koyeb](https://www.koyeb.com/).
+2. Click **Create App** and select **GitHub**.
+3. Choose the repository: `RDX-EXPART/rdx-movie-feed`.
+4. Leave the builder as **Dockerfile** (or Buildpack).
+5. Add the following **Environment Variables**:
+   | Variable | Value | Description |
+   |---|---|---|
+   | `BOT_TOKEN` | `123456:ABC-DEF...` | Telegram Bot Token from @BotFather |
+   | `CHANNEL_ID` | `-1001234567890` | Target Channel ID or `@Username` |
+   | `LEECH_BOT_USERNAME` | `RDX_Leech_Bot` | Optional: Your Leech Bot's username |
+   | `DATABASE_URL` | `mongodb+srv://...` | Optional: MongoDB Atlas URI for persistent state |
+   | `CHECK_INTERVAL` | `300` | Scrape frequency in seconds (default: 300) |
+   | `PORT` | `8080` | Required for Koyeb health check |
+6. Click **Deploy**. Your feed bot will be live within 2 minutes!
+
+---
+
+### Method 2: Deploy to Heroku
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
+1. Create a new app on [Heroku](https://dashboard.heroku.com/).
+2. In the **Deploy** tab, connect your GitHub repository `RDX-EXPART/rdx-movie-feed`.
+3. In **Settings** -> **Reveal Config Vars**, add:
+   - `BOT_TOKEN`
+   - `CHANNEL_ID`
+   - `LEECH_BOT_USERNAME` (Optional)
+   - `DATABASE_URL` (Optional MongoDB URI)
+   - `CHECK_INTERVAL` (e.g. `300`)
+4. In the **Resources** tab, activate the `web` dyno (`python3 main.py`).
+
+---
+
+### Method 3: Run via Docker
 
 ```bash
-# ১. রিপোজিটরি ক্লোন করুন
+# Build the Docker image
+docker build -t rdx-movie-feed .
+
+# Run the container
+docker run -d \
+  --name rdx-movie-feed \
+  -p 8080:8080 \
+  -e BOT_TOKEN="your_bot_token" \
+  -e CHANNEL_ID="your_channel_id" \
+  -e LEECH_BOT_USERNAME="your_leech_bot_username" \
+  rdx-movie-feed
+```
+
+---
+
+### Method 4: Local / VPS Setup
+
+```bash
+# Clone the repository
 git clone https://github.com/RDX-EXPART/rdx-movie-feed.git
 cd rdx-movie-feed
 
-# ২. ডিপেন্ডেন্সি ইনস্টল করুন
+# Install dependencies
 pip install -r requirements.txt
 
-# ৩. কনফিগ ফাইল তৈরি করুন
+# Create environment configuration
 cp .env.example .env
-nano .env  # আপনার BOT_TOKEN ও CHANNEL_ID বসান
+nano .env  # Enter your BOT_TOKEN and CHANNEL_ID
 
-# ৪. বট চালু করুন
+# Start the bot
 python3 main.py
 ```
 
 ---
 
-## 🛠 অ্যাডমিন কমান্ড (Bot Commands)
+## ⚙️ Configuration Reference (`.env`)
 
-বটকে ইনবক্সে মেসেজ দিয়ে নিচের কমান্ডগুলো ব্যবহার করতে পারেন:
-- `/start` বা `/help` - বটের স্ট্যাটাস ও তথ্য দেখাবে।
-- `/status` - মোট কতগুলো মুভি ইনডেক্স করা হয়েছে এবং কোন কোন সাইট সক্রিয় আছে তা দেখাবে।
-- `/check` বা `/force` - অপেক্ষা না করে সাথে সাথে সমস্ত ওয়েবসাইট স্ক্র্যাপ করে নতুন কোনো মুভি থাকলে চ্যানেলে পাঠাবে।
-
----
-
-## ⚙️ কনফিগারেশন বিবরণী (.env Variables)
-
-| Variable | ডিফল্ট | বিবরণ |
-|---|---|---|
-| `BOT_TOKEN` | Required | টেলিগ্রাম বট টোকেন |
-| `CHANNEL_ID` | Required | টার্গেট চ্যানেল আইডি বা `@username` |
-| `LEECH_BOT_USERNAME` | ঐচ্ছিক | আপনার লীচ বটের ইউজারনেম (বাটন লিঙ্কের জন্য) |
-| `DATABASE_URL` | ঐচ্ছিক | MongoDB Atlas কানেকশন স্ট্রিং |
-| `CHECK_INTERVAL` | `300` | স্ক্র্যাপিং ব্যবধান (সেকেন্ডে) |
-| `ENABLE_MLSBD` | `true` | MLSBD স্ক্র্যাপ চালু/বন্ধ |
-| `ENABLE_VEGAMOVIES` | `true` | VegaMovies স্ক্র্যাপ চালু/বন্ধ |
-| `ENABLE_FOURKHDHUB` | `true` | 4K-HDHub স্ক্র্যাপ চালু/বন্ধ |
-| `ENABLE_MOVIESMOD` | `true` | MoviesMod স্ক্র্যাপ চালু/বন্ধ |
-| `ENABLE_SKYMOVIES` | `true` | SkyMoviesHD স্ক্র্যাপ চালু/বন্ধ |
-| `INITIAL_MARK_SEEN` | `true` | প্রথমবার চালুর সময় আগের মুভি দিয়ে চ্যানেল স্প্যাম না করে শুধু নতুন রিলিজ পাঠানো |
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `BOT_TOKEN` | **Yes** | — | Telegram Bot token from @BotFather |
+| `CHANNEL_ID` | **Yes** | — | Telegram Channel ID or `@ChannelUsername` |
+| `LEECH_BOT_USERNAME` | No | — | Username of your leech bot for inline button |
+| `DATABASE_URL` | No | `""` | MongoDB Atlas URI. If omitted, uses local SQLite |
+| `ADMIN_IDS` | No | `""` | Comma-separated admin Telegram user IDs |
+| `CHECK_INTERVAL` | No | `300` | Time interval between scrapes (in seconds) |
+| `PORT` | No | `8080` | HTTP port for Koyeb/Heroku health-check |
+| `ENABLE_MLSBD` | No | `true` | Toggle MLSBD source |
+| `ENABLE_VEGAMOVIES` | No | `true` | Toggle VegaMovies source |
+| `ENABLE_FOURKHDHUB` | No | `true` | Toggle 4K-HDHub source |
+| `ENABLE_MOVIESMOD` | No | `true` | Toggle MoviesMod source |
+| `ENABLE_SKYMOVIES` | No | `true` | Toggle SkyMoviesHD source |
+| `INITIAL_MARK_SEEN` | No | `true` | Prevents posting old movies on first startup |
 
 ---
 
-Developed with ❤️ for **RDX Technology**.
+## 🤖 Admin Commands
+
+Send these commands directly to your bot in private chat:
+
+- `/start` or `/help` — Displays bot runtime information and status.
+- `/status` — Shows total indexed movies, active scraping sources, database type, and uptime.
+- `/check` or `/force` — Immediately triggers an on-demand check for new releases across all sources.
+
+---
+
+## 📄 License
+
+This project is open-source under the [MIT License](LICENSE).
+Developed with ❤️ for the **RDX Community**.
