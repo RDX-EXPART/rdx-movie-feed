@@ -42,7 +42,7 @@ PORT = _int(os.environ.get("PORT", "8080"), 8080)
 
 # Website Domains / RSS Feeds
 MLSBD_FEED = os.environ.get("MLSBD_FEED", "https://mlsbd.co/feed/").strip()
-VEGAMOVIES_URL = os.environ.get("VEGAMOVIES_URL", "https://vegamovis.skin").strip().rstrip("/")
+VEGAMOVIES_URL = os.environ.get("VEGAMOVIES_URL", "https://vegamovies.lease").strip().rstrip("/")
 FOURKHDHUB_URL = os.environ.get("FOURKHDHUB_URL", "https://4khdhub.one").strip().rstrip("/")
 MOVIESMOD_URL = os.environ.get("MOVIESMOD_URL", "https://moviesmod.tw").strip().rstrip("/")
 SKYMOVIES_URL = os.environ.get("SKYMOVIES_URL", "https://skymovieshd.green").strip().rstrip("/")
