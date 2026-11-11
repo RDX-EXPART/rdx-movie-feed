@@ -232,8 +232,28 @@ async def generate_sources_text() -> str:
     )
 
 
-async def restart_bot(session: aiohttp.ClientSession, chat_id: int):
+_LAST_REBOOT_TIME = 0
+
+
+async def restart_bot(session: aiohttp.ClientSession, chat_id: int, update_id: Optional[int] = None):
     """Gracefully restart the bot process."""
+    global _LAST_REBOOT_TIME
+    now = time.time()
+    if now - _LAST_REBOOT_TIME < 15:
+        LOGGER.warning("Restart command received too soon after previous reboot. Ignoring to prevent loop.")
+        return
+    _LAST_REBOOT_TIME = now
+
+    # 1. Immediately acknowledge this update with Telegram so it is never re-delivered
+    if update_id is not None:
+        try:
+            ack_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset={update_id + 1}&limit=1"
+            async with session.get(ack_url, timeout=aiohttp.ClientTimeout(total=5)) as ack_resp:
+                await ack_resp.read()
+            LOGGER.info(f"Acknowledged restart update {update_id} with Telegram.")
+        except Exception as e:
+            LOGGER.debug(f"Failed to ack update before restart: {e}")
+
     msg_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
@@ -274,6 +294,18 @@ async def bot_command_poller():
         await setup_bot_commands(session)
         # Check if rebooted from /restart
         await check_restart_notification(session)
+
+        # Drop any stale unconfirmed backlog on startup so old commands are never re-executed
+        try:
+            async with session.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset=-1") as resp:
+                if resp.status == 200:
+                    d = await resp.json()
+                    res = d.get("result", [])
+                    if res:
+                        offset = res[-1]["update_id"] + 1
+                        LOGGER.info(f"Initialized Telegram poller offset to {offset} (cleared stale queue).")
+        except Exception as e:
+            LOGGER.warning(f"Could not clear poller backlog: {e}")
 
         while IS_RUNNING:
             try:
@@ -346,7 +378,7 @@ async def bot_command_poller():
                             elif cb_data == "panel_restart":
                                 if not is_admin:
                                     continue
-                                await restart_bot(session, cb_chat_id)
+                                await restart_bot(session, cb_chat_id, update_id=update["update_id"])
                             continue
 
                         # 2. Handle Text Messages
@@ -422,7 +454,7 @@ async def bot_command_poller():
                                     json={"chat_id": chat_id, "text": "⛔ <i>Unauthorized admin command.</i>", "parse_mode": "HTML"},
                                 )
                                 continue
-                            await restart_bot(session, chat_id)
+                            await restart_bot(session, chat_id, update_id=update["update_id"])
 
             except Exception as e:
                 LOGGER.debug(f"Poller error: {e}")
