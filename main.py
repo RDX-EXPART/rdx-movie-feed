@@ -250,15 +250,22 @@ async def monitor_loop():
     if is_empty and INITIAL_MARK_SEEN:
         LOGGER.info("Initial boot detected with empty database! Fetching existing items to mark as seen...")
         items = await fetch_all_sources()
+        # Collect 1 sample per site to post as verification greeting
+        samples_by_site = {}
         for it in items:
+            if it.site not in samples_by_site:
+                samples_by_site[it.site] = it
             await db.mark_seen(it.url, it.title, it.site)
         LOGGER.info(
             f"Database initialized with {len(items)} existing movies. Bot is now watching for brand new releases!"
         )
 
-        if items and BOT_TOKEN and CHANNEL_ID:
-            LOGGER.info(f"Posting 1 sample latest release to verify channel setup: {items[0].title}")
-            await post_movie_to_channel(items[0])
+        if BOT_TOKEN and CHANNEL_ID and samples_by_site:
+            LOGGER.info(f"Posting 1 sample latest release from each active site ({len(samples_by_site)} sites)...")
+            for site_name, sample in samples_by_site.items():
+                LOGGER.info(f"Posting initial sample for {site_name}: {sample.title}")
+                await post_movie_to_channel(sample)
+                await asyncio.sleep(2)
 
     LOGGER.info(f"Monitor loop activated! Interval: {CHECK_INTERVAL} seconds ({CHECK_INTERVAL // 60} mins).")
 

@@ -2,8 +2,9 @@ import logging
 import re
 import time
 from typing import List, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
+import aiohttp
 from bs4 import BeautifulSoup
 
 from config import BOLLYFLIX_HUB_URL, BOLLYFLIX_URL
@@ -42,17 +43,19 @@ async def resolve_active_bollyflix_domain() -> str:
 
     LOGGER.info(f"Auto-detecting BollyFlix domain from hub {BOLLYFLIX_HUB_URL}...")
     try:
-        html = await fetch_html(BOLLYFLIX_HUB_URL, timeout=8, use_jina_fallback=False)
-        if html:
-            m = re.findall(r'https?://(?:[a-zA-Z0-9\-]+\.)?bollyflix\.[a-z0-9]+/?', html, re.I)
-            if m:
-                detected = m[0].rstrip("/")
-                LOGGER.info(f"Auto-detected BollyFlix domain: {detected}")
-                _CACHED_BF_DOMAIN = detected
-                _CACHE_EXPIRE_BF = now + CACHE_TTL
-                return detected
+        hub_redirect = f"{BOLLYFLIX_HUB_URL.rstrip('/')}/?re=bollyflix"
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8)) as session:
+            async with session.get(hub_redirect, allow_redirects=True) as resp:
+                if resp.status == 200:
+                    parsed = urlparse(str(resp.url))
+                    target = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+                    if "baby" not in target and "bi" not in target:
+                        LOGGER.info(f"Auto-detected BollyFlix domain via redirect: {target}")
+                        _CACHED_BF_DOMAIN = target
+                        _CACHE_EXPIRE_BF = now + CACHE_TTL
+                        return target
     except Exception as e:
-        LOGGER.warning(f"Failed to auto-detect BollyFlix domain: {e}")
+        LOGGER.warning(f"Failed to auto-detect BollyFlix domain via redirect: {e}")
 
     for mirror in FALLBACK_MIRRORS:
         test_html = await fetch_html(mirror, timeout=6, use_jina_fallback=False)
@@ -109,7 +112,14 @@ async def scrape_bollyflix() -> List[MovieItem]:
 
             title = re.sub(r"^download\s+", "", title, flags=re.I).strip()
 
-            if title and url and len(title) > 5 and not url.endswith(("#", "/")):
+            if (
+                title
+                and url
+                and len(title) > 5
+                and not url.endswith("#")
+                and url.rstrip("/") != base_url.rstrip("/")
+                and not any(x in url for x in ("/category/", "/tag/", "/page/", "/cdn-cgi/"))
+            ):
                 items.append(
                     MovieItem(
                         site="BollyFlix",

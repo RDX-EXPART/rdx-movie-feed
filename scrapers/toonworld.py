@@ -93,7 +93,14 @@ async def scrape_toonworld() -> List[MovieItem]:
 
             title = re.sub(r"^download\s+", "", title, flags=re.I).strip()
 
-            if title and url and len(title) > 5 and not url.endswith(("#", "/")):
+            if (
+                title
+                and url
+                and len(title) > 5
+                and not url.endswith("#")
+                and url.rstrip("/") != base_url.rstrip("/")
+                and not any(x in url for x in ("/category/", "/tag/", "/page/", "/cdn-cgi/"))
+            ):
                 items.append(
                     MovieItem(
                         site="ToonWorld4All",

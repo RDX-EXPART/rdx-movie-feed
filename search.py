@@ -26,7 +26,11 @@ from scrapers.dotmovies import extract_qualities as dm_qualities, resolve_active
 from scrapers.extraflix import extract_qualities as ef_qualities, resolve_active_extraflix_domain
 from scrapers.hdhub4u import extract_qualities as hd_qualities, resolve_active_hdhub4u_domain
 from scrapers.katdrama import extract_qualities as kd_qualities, resolve_active_katdrama_domain
-from scrapers.katmoviehd import extract_qualities as km_qualities, resolve_active_katmoviehd_domain
+from scrapers.katmoviehd import (
+    _parse_items_from_svelte as km_parse_svelte,
+    extract_qualities as km_qualities,
+    resolve_active_katmoviehd_domain,
+)
 from scrapers.moviesmod import extract_qualities as mm_qualities, resolve_active_moviesmod_domain
 from scrapers.toonworld import extract_qualities as tw_qualities, resolve_active_toonworld_domain
 from scrapers.vegamovies import extract_qualities as vg_qualities, resolve_active_vega_domain
@@ -57,7 +61,7 @@ async def search_dotmovies(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/")):
                 continue
             seen.add(url)
 
@@ -106,7 +110,7 @@ async def search_bollyflix(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/")):
                 continue
             seen.add(url)
 
@@ -155,7 +159,7 @@ async def search_cinevood(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/")):
                 continue
             seen.add(url)
 
@@ -204,7 +208,7 @@ async def search_toonworld(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/", "/cdn-cgi/")):
                 continue
             seen.add(url)
 
@@ -278,6 +282,71 @@ async def search_katdrama(query: str, limit: int = 6) -> List[MovieItem]:
     return items
 
 
+async def search_katmoviehd(query: str, limit: int = 6) -> List[MovieItem]:
+    """Search KatMovieHD for movies, series & dual audio."""
+    base_url = await resolve_active_katmoviehd_domain()
+    search_url = f"{base_url}/?s={quote_plus(query)}"
+    html = await fetch_html(search_url, timeout=12)
+    if not html:
+        return []
+
+    items = []
+    # 1. Try SvelteKit extraction
+    svelte_items = km_parse_svelte(html, base_url)
+    if svelte_items:
+        for it in svelte_items:
+            if "katdrama" in it.url.lower() or "new show updated" in it.title.lower():
+                continue
+            items.append(it)
+            if len(items) >= limit:
+                break
+        if items:
+            return items
+
+    # 2. HTML fallback
+    seen = set()
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        posts = soup.select("article, div.post, .post-item, div.latest-post, .item")
+        for p in posts:
+            a = p.find("a")
+            if not a or not a.get("href"):
+                continue
+            url = urljoin(base_url, a["href"])
+            if (
+                url in seen
+                or url.endswith("#")
+                or url.rstrip("/") == base_url.rstrip("/")
+                or any(x in url for x in ("/category/", "/tag/", "/page/"))
+            ):
+                continue
+            seen.add(url)
+            img = p.find("img")
+            poster = None
+            if img:
+                poster = img.get("src") or img.get("data-src") or img.get("data-lazy-src")
+                if poster:
+                    poster = urljoin(base_url, poster)
+            heading = p.select_one("h1, h2, h3, .entry-title, .title")
+            title = heading.get_text(strip=True) if heading else a.get_text(strip=True)
+            title = _clean_post_title(title)
+            if title and len(title) > 4:
+                items.append(
+                    MovieItem(
+                        site="KatMovieHD",
+                        title=title,
+                        url=url,
+                        poster=poster,
+                        quality=km_qualities(title),
+                    )
+                )
+            if len(items) >= limit:
+                break
+    except Exception as e:
+        LOGGER.debug(f"KatMovieHD search error: {e}")
+    return items
+
+
 async def search_moviesmod(query: str, limit: int = 6) -> List[MovieItem]:
     """Search MoviesMod."""
     base_url = await resolve_active_moviesmod_domain()
@@ -296,7 +365,7 @@ async def search_moviesmod(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/")):
                 continue
             seen.add(url)
 
@@ -345,7 +414,7 @@ async def search_extraflix(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/")):
                 continue
             seen.add(url)
 
@@ -394,7 +463,7 @@ async def search_hdhub4u(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/")):
                 continue
             seen.add(url)
 
@@ -428,10 +497,10 @@ async def search_hdhub4u(query: str, limit: int = 6) -> List[MovieItem]:
 async def search_vegamovies(query: str, limit: int = 6) -> List[MovieItem]:
     """Search VegaMovies."""
     base_url = await resolve_active_vega_domain()
-    search_url = f"{base_url}/search/{quote_plus(query)}"
+    search_url = f"{base_url}/?s={quote_plus(query)}"
     html = await fetch_html(search_url, timeout=12)
     if not html:
-        search_url = f"{base_url}/?s={quote_plus(query)}"
+        search_url = f"{base_url}/search/{quote_plus(query)}"
         html = await fetch_html(search_url, timeout=12)
     if not html:
         return []
@@ -446,7 +515,7 @@ async def search_vegamovies(query: str, limit: int = 6) -> List[MovieItem]:
             if not a or not a.get("href"):
                 continue
             url = urljoin(base_url, a["href"])
-            if url in seen or url.endswith(("#", "/")):
+            if url in seen or url.endswith("#") or url.rstrip("/") == base_url.rstrip("/") or any(x in url for x in ("/category/", "/tag/", "/page/")):
                 continue
             seen.add(url)
 
@@ -492,6 +561,8 @@ async def search_all_sites(query: str, max_total: int = 24) -> List[MovieItem]:
         tasks.append(search_cinevood(query))
     if ENABLE_TOONWORLD:
         tasks.append(search_toonworld(query))
+    if ENABLE_KATMOVIEHD:
+        tasks.append(search_katmoviehd(query))
     if ENABLE_KATDRAMA:
         tasks.append(search_katdrama(query))
     if ENABLE_MOVIESMOD:

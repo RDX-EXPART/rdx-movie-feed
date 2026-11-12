@@ -44,13 +44,15 @@ async def resolve_active_cinevood_domain() -> str:
     try:
         html = await fetch_html(CINEVOOD_HUB_URL, timeout=8, use_jina_fallback=False)
         if html:
-            m = re.findall(r'https?://(?:[a-zA-Z0-9\-]+\.)?1?cinevood\.[a-z0-9]+/?', html, re.I)
-            if m:
-                detected = m[0].rstrip("/")
-                LOGGER.info(f"Auto-detected CineVood domain: {detected}")
-                _CACHED_CV_DOMAIN = detected
-                _CACHE_EXPIRE_CV = now + CACHE_TTL
-                return detected
+            soup = BeautifulSoup(html, "html.parser")
+            for a in soup.find_all("a"):
+                href = a.get("href", "")
+                if "cinevood" in href.lower() and "garden" not in href.lower() and href.startswith("http"):
+                    detected = href.rstrip("/")
+                    LOGGER.info(f"Auto-detected CineVood domain from hub: {detected}")
+                    _CACHED_CV_DOMAIN = detected
+                    _CACHE_EXPIRE_CV = now + CACHE_TTL
+                    return detected
     except Exception as e:
         LOGGER.warning(f"Failed to auto-detect CineVood domain: {e}")
 
@@ -109,7 +111,14 @@ async def scrape_cinevood() -> List[MovieItem]:
 
             title = re.sub(r"^download\s+", "", title, flags=re.I).strip()
 
-            if title and url and len(title) > 5 and not url.endswith(("#", "/")):
+            if (
+                title
+                and url
+                and len(title) > 5
+                and not url.endswith("#")
+                and url.rstrip("/") != base_url.rstrip("/")
+                and not any(x in url for x in ("/category/", "/tag/", "/page/", "/cdn-cgi/"))
+            ):
                 items.append(
                     MovieItem(
                         site="CineVood",

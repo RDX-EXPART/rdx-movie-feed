@@ -82,7 +82,7 @@ def _parse_items_from_svelte(html: str, base_url: str) -> List[MovieItem]:
                 title = it.get("post_title") or it.get("title") or ""
                 slug = it.get("slug") or it.get("id") or ""
                 poster = it.get("thumbnail_image") or it.get("poster")
-                if not title or not slug:
+                if not title or not slug or slug.lower() in ("katdrama", "contact-us", "dmca") or "new show updated" in title.lower():
                     continue
                 url = urljoin(base_url, f"/post/{slug}" if not slug.startswith("/") else slug)
                 items.append(

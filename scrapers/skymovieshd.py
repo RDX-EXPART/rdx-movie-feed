@@ -94,8 +94,8 @@ async def scrape_skymovieshd() -> List[MovieItem]:
     seen_urls = set()
     try:
         soup = BeautifulSoup(html, "html.parser")
-        # Target movie release links (matching /movie/....html)
-        links = soup.find_all("a", href=re.compile(r"/movie/.*\.html"))
+        # Target movie release links (matching movie/<title>.html or /movie/<title>.html)
+        links = soup.find_all("a", href=re.compile(r"(?:^|/)movie/(?!index|\.html)[^/]+\.html", re.I))
         for a in links:
             href = a.get("href", "")
             url = urljoin(base_url, href)
