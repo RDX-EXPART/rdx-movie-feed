@@ -61,7 +61,7 @@ class FeedDatabase:
     def _is_seen_sync(self, url: str) -> bool:
         if not url:
             return True
-        norm_url = url.strip()
+        norm_url = url.strip().rstrip("/")
         if self.use_mongo:
             try:
                 return bool(self.collection.find_one({"url": norm_url}))
@@ -81,7 +81,7 @@ class FeedDatabase:
     def _mark_seen_sync(self, url: str, title: str = "", site: str = ""):
         if not url:
             return
-        norm_url = url.strip()
+        norm_url = url.strip().rstrip("/")
         now = time.time()
         if self.use_mongo:
             try:

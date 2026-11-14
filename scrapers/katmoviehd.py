@@ -17,9 +17,11 @@ _CACHE_EXPIRE_KM: float = 0
 CACHE_TTL = 3600
 
 FALLBACK_MIRRORS = [
+    "https://new3.katmoviehd.top",
     "https://new2.katmoviehd.top",
     "https://katmoviehd.fans",
-    "https://katmoviehd.pictures",
+    "https://katmoviehd.rodeo",
+    "https://katmovieshd.net",
 ]
 
 

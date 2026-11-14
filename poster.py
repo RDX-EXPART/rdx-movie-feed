@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 import aiohttp
 
-from config import BOT_TOKEN, CHANNEL_ID, LEECH_BOTS
+from config import BOT_TOKEN, CHANNEL_ID, LEECH_BOTS, LEECH_BOT_USERNAME
 from scrapers.base import MovieItem
 from scrapers.mlsbd import fetch_mlsbd_poster
 
@@ -55,7 +55,10 @@ def format_caption(item: MovieItem) -> str:
 def build_keyboard(item: MovieItem) -> dict:
     """Construct inline keyboard with exactly two stacked buttons: Open Website and Send to Leech Bot."""
     encoded_url = quote(item.url, safe="")
-    share_url = f"https://t.me/share/url?url={encoded_url}"
+    if LEECH_BOT_USERNAME:
+        share_url = f"https://t.me/{LEECH_BOT_USERNAME}?start={encoded_url}"
+    else:
+        share_url = f"https://t.me/share/url?url={encoded_url}"
     return {
         "inline_keyboard": [
             [{"text": "🌐 Open Website", "url": item.url}],

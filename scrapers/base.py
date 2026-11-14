@@ -53,15 +53,27 @@ async def fetch_html(
         h.update(headers)
 
     client_timeout = aiohttp.ClientTimeout(total=timeout)
+    jina_headers = {
+        "User-Agent": DEFAULT_HEADERS["User-Agent"],
+        "x-return-format": "html",
+    }
     try:
         async with aiohttp.ClientSession(timeout=client_timeout) as session:
             async with session.get(url, headers=h, allow_redirects=allow_redirects) as resp:
                 if resp.status == 200:
-                    return await resp.text(errors="ignore")
+                    text = await resp.text(errors="ignore")
+                    if len(text) > 200 and not any(k in text for k in ("<title>Just a moment...</title>", "challenge-platform", "cf-browser-verification", "Performing security verification")):
+                        return text
+                    elif use_jina_fallback:
+                        LOGGER.info(f"Cloudflare challenge detected on 200 for {url}, attempting Jina HTML fallback...")
+                        jina_url = f"https://r.jina.ai/{url}"
+                        async with session.get(jina_url, headers=jina_headers) as jresp:
+                            if jresp.status == 200:
+                                return await jresp.text(errors="ignore")
                 elif resp.status in (403, 502, 503) and use_jina_fallback:
-                    LOGGER.info(f"Got {resp.status} for {url}, attempting Jina AI reader fallback...")
+                    LOGGER.info(f"Got {resp.status} for {url}, attempting Jina HTML fallback...")
                     jina_url = f"https://r.jina.ai/{url}"
-                    async with session.get(jina_url, headers={"User-Agent": DEFAULT_HEADERS["User-Agent"]}) as jresp:
+                    async with session.get(jina_url, headers=jina_headers) as jresp:
                         if jresp.status == 200:
                             return await jresp.text(errors="ignore")
                 LOGGER.warning(f"Failed to fetch {url} (HTTP {resp.status})")
@@ -71,7 +83,7 @@ async def fetch_html(
             try:
                 jina_url = f"https://r.jina.ai/{url}"
                 async with aiohttp.ClientSession(timeout=client_timeout) as session:
-                    async with session.get(jina_url, headers={"User-Agent": DEFAULT_HEADERS["User-Agent"]}) as jresp:
+                    async with session.get(jina_url, headers=jina_headers) as jresp:
                         if jresp.status == 200:
                             return await jresp.text(errors="ignore")
             except Exception as je:

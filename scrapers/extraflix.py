@@ -16,6 +16,8 @@ _CACHE_EXPIRE_EF: float = 0
 CACHE_TTL = 3600  # 1 hour cache
 
 FALLBACK_MIRRORS = [
+    "https://e14.extraflix.mobi",
+    "https://e15.extraflix.mobi",
     "https://e13.extraflix.mobi",
     "https://extraflix.mobi",
     "https://extraflix.pw",
