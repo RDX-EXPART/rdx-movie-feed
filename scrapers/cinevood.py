@@ -16,8 +16,8 @@ _CACHE_EXPIRE_CV: float = 0
 CACHE_TTL = 3600
 
 FALLBACK_MIRRORS = [
-    "https://one.1cinevood.beer",
-    "https://cinevood.ind.in",
+    "https://one.1cinevood.baby",
+    "https://cinevood.coupons/",
     "https://cinevood.garden",
     "https://cinevood.net",
 ]
