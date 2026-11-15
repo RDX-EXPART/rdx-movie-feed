@@ -16,6 +16,7 @@ _CACHE_EXPIRE_DM: float = 0
 CACHE_TTL = 3600
 
 FALLBACK_MIRRORS = [
+    "https://dotmovie.pro",
     "https://dotmoviess.co.in",
     "https://dotmovies.army",
     "https://dotmovies.lat",
@@ -43,7 +44,7 @@ async def resolve_active_dotmovies_domain() -> str:
     try:
         html = await fetch_html(DOTMOVIES_HUB_URL, timeout=8, use_jina_fallback=False)
         if html:
-            m = re.findall(r'https?://(?:[a-zA-Z0-9\-]+\.)?dotmovies[a-z0-9\.\-]+', html, re.I)
+            m = re.findall(r'https?://(?:[a-zA-Z0-9\-]+\.)?dotmovies?[a-z0-9\.\-]+', html, re.I)
             if m:
                 detected = m[0].rstrip("/")
                 LOGGER.info(f"Auto-detected DotMovies domain: {detected}")
