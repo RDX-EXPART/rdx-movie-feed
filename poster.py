@@ -31,6 +31,7 @@ def format_caption(item: MovieItem) -> str:
         "BollyFlix": "🎬",
         "CineVood": "🍿",
         "ToonWorld4All": "🌀",
+        "FilmyCab": "🚕",
     }
     emoji = site_emojis.get(item.site, "🎬")
     title = escape(item.clean_title())

@@ -38,8 +38,10 @@ from config import (
     ENABLE_SKYMOVIES,
     ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
+    ENABLE_FILMYCAB,
     EXTRAFLIX_HUB_URL,
     EXTRAFLIX_URL,
+    FILMYCAB_URL,
     FOURKHDHUB_URL,
     HDHUB4U_HUB_URL,
     HDHUB4U_URL,
@@ -66,6 +68,7 @@ from scrapers.bollyflix import resolve_active_bollyflix_domain
 from scrapers.cinevood import resolve_active_cinevood_domain
 from scrapers.dotmovies import resolve_active_dotmovies_domain
 from scrapers.extraflix import resolve_active_extraflix_domain
+from scrapers.filmycab import resolve_active_filmycab_domain
 from scrapers.hdhub4u import resolve_active_hdhub4u_domain
 from scrapers.katdrama import resolve_active_katdrama_domain
 from scrapers.katmoviehd import resolve_active_katmoviehd_domain
@@ -326,6 +329,8 @@ async def generate_status_text() -> str:
         sources.append("CineVood")
     if ENABLE_TOONWORLD:
         sources.append("ToonWorld4All")
+    if ENABLE_FILMYCAB:
+        sources.append("FilmyCab")
 
     last_time_str = (
         time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(LAST_CHECK_TIME))
@@ -343,7 +348,7 @@ async def generate_status_text() -> str:
         f"🤖 <b>Leech Bots:</b> {bots_str}\n"
         f"🕒 <b>Last Check:</b> {last_time_str}\n"
         f"⏱ <b>Interval:</b> {CHECK_INTERVAL}s\n"
-        f"🔍 <b>Search Engine:</b> Active across all 13 sites\n"
+        f"🔍 <b>Search Engine:</b> Active across all 14 sites\n"
         f"🗄 <b>DB Type:</b> {'MongoDB Atlas' if DATABASE_URL else 'SQLite (Local)'}"
     )
 
@@ -360,6 +365,7 @@ async def generate_sources_text() -> str:
     bf_domain = await resolve_active_bollyflix_domain()
     cv_domain = await resolve_active_cinevood_domain()
     tw_domain = await resolve_active_toonworld_domain()
+    fc_domain = await resolve_active_filmycab_domain()
 
     return (
         "🌐 <b>Active Monitored Sources & Domains</b>\n\n"
@@ -384,7 +390,8 @@ async def generate_sources_text() -> str:
         f"   └ <i>Auto-resolver: {BOLLYFLIX_HUB_URL}</i>\n"
         f"🍿 <b>CineVood:</b> <code>{cv_domain}</code>\n"
         f"   └ <i>Auto-resolver: {CINEVOOD_HUB_URL}</i>\n"
-        f"🌀 <b>ToonWorld4All:</b> <code>{tw_domain}</code>\n\n"
+        f"🌀 <b>ToonWorld4All:</b> <code>{tw_domain}</code>\n"
+        f"🚕 <b>FilmyCab:</b> <code>{fc_domain}</code>\n\n"
         "💡 <i>All domains auto-detect from official hubs, but can also be manually overridden in config!</i>"
     )
 

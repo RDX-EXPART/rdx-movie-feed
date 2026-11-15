@@ -5,6 +5,7 @@ import re
 from typing import List, Optional
 from urllib.parse import quote_plus, urljoin
 
+import aiohttp
 from bs4 import BeautifulSoup
 
 from config import (
@@ -18,12 +19,14 @@ from config import (
     ENABLE_MOVIESMOD,
     ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
+    ENABLE_FILMYCAB,
 )
-from scrapers.base import MovieItem, fetch_html
+from scrapers.base import DEFAULT_HEADERS, MovieItem, fetch_html
 from scrapers.bollyflix import extract_qualities as bf_qualities, resolve_active_bollyflix_domain
 from scrapers.cinevood import extract_qualities as cv_qualities, resolve_active_cinevood_domain
 from scrapers.dotmovies import extract_qualities as dm_qualities, resolve_active_dotmovies_domain
 from scrapers.extraflix import extract_qualities as ef_qualities, resolve_active_extraflix_domain
+from scrapers.filmycab import extract_qualities as fc_qualities, resolve_active_filmycab_domain
 from scrapers.hdhub4u import extract_qualities as hd_qualities, resolve_active_hdhub4u_domain
 from scrapers.katdrama import extract_qualities as kd_qualities, resolve_active_katdrama_domain
 from scrapers.katmoviehd import (
@@ -546,6 +549,65 @@ async def search_vegamovies(query: str, limit: int = 6) -> List[MovieItem]:
     return items
 
 
+async def search_filmycab(query: str, limit: int = 6) -> List[MovieItem]:
+    """Search FilmyCab for movies and series."""
+    base_url = await resolve_active_filmycab_domain()
+    search_url = f"{base_url}/site-search.html"
+    items = []
+    seen = set()
+    try:
+        h = dict(DEFAULT_HEADERS)
+        h["Content-Type"] = "application/x-www-form-urlencoded"
+        h["Referer"] = base_url
+        client_timeout = aiohttp.ClientTimeout(total=12)
+        async with aiohttp.ClientSession(timeout=client_timeout) as session:
+            async with session.post(search_url, data={"to-search": query}, headers=h) as resp:
+                if resp.status == 200:
+                    html = await resp.text(errors="ignore")
+                    soup = BeautifulSoup(html, "html.parser")
+                    thumbs = soup.select("div.thumb, div.rsz, figure, section.thumbnail-wrapper div.thumb")
+                    for thumb in thumbs:
+                        a = thumb.find("a", href=lambda val: val and val.endswith(".html"))
+                        if not a or not a.get("href"):
+                            continue
+                        url = urljoin(base_url, a["href"])
+                        if url in seen:
+                            continue
+                        seen.add(url)
+
+                        img = thumb.find("img")
+                        title = ""
+                        poster = None
+                        if img:
+                            title = img.get("alt", "").strip()
+                            poster = img.get("src") or img.get("data-src")
+                            if poster:
+                                poster = urljoin(base_url, poster)
+                        if not title:
+                            title = a.get_text(" ", strip=True)
+                            title = re.sub(r"^(?:Download|Watch)\s*", "", title, flags=re.I).strip()
+
+                        if not title:
+                            slug = a["href"].rstrip("/").split("/")[-1].replace(".html", "").replace("-", " ")
+                            title = slug
+
+                        quality = fc_qualities(title)
+                        items.append(
+                            MovieItem(
+                                site="FilmyCab",
+                                title=title,
+                                url=url,
+                                poster=poster,
+                                quality=quality,
+                            )
+                        )
+                        if len(items) >= limit:
+                            break
+    except Exception as e:
+        LOGGER.debug(f"FilmyCab search error: {e}")
+    return items
+
+
 async def search_all_sites(query: str, max_total: int = 24) -> List[MovieItem]:
     """Search across all active movie & series websites concurrently."""
     query = query.strip()
@@ -573,6 +635,8 @@ async def search_all_sites(query: str, max_total: int = 24) -> List[MovieItem]:
         tasks.append(search_hdhub4u(query))
     if ENABLE_VEGAMOVIES:
         tasks.append(search_vegamovies(query))
+    if ENABLE_FILMYCAB:
+        tasks.append(search_filmycab(query))
 
     if not tasks:
         LOGGER.warning("No search sources enabled!")
