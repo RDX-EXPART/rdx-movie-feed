@@ -41,28 +41,43 @@ async def resolve_active_cinevood_domain() -> str:
         return _CACHED_CV_DOMAIN
 
     LOGGER.info(f"Auto-detecting CineVood domain from hub {CINEVOOD_HUB_URL}...")
+    candidates = []
     try:
         html = await fetch_html(CINEVOOD_HUB_URL, timeout=8, use_jina_fallback=False)
         if html:
             soup = BeautifulSoup(html, "html.parser")
+            from urllib.parse import urlparse
+            hub_host = urlparse(CINEVOOD_HUB_URL).netloc.lower()
             for a in soup.find_all("a"):
-                href = a.get("href", "")
-                if "cinevood" in href.lower() and "garden" not in href.lower() and href.startswith("http"):
-                    detected = href.rstrip("/")
-                    LOGGER.info(f"Auto-detected CineVood domain from hub: {detected}")
-                    _CACHED_CV_DOMAIN = detected
-                    _CACHE_EXPIRE_CV = now + CACHE_TTL
-                    return detected
+                href = a.get("href", "").strip()
+                if not href.startswith("http"):
+                    continue
+                p = urlparse(href)
+                cand_host = p.netloc.lower()
+                if not cand_host or cand_host == hub_host:
+                    continue
+                if any(ign in cand_host for ign in ("telegram", "t.me", "whatsapp", "twitter", "facebook")):
+                    continue
+                if "cinevood" in cand_host:
+                    cand_url = f"{p.scheme}://{cand_host}".rstrip("/")
+                    if cand_url not in candidates:
+                        candidates.append(cand_url)
     except Exception as e:
-        LOGGER.warning(f"Failed to auto-detect CineVood domain: {e}")
+        LOGGER.warning(f"Failed to auto-detect CineVood domain from hub: {e}")
 
-    for mirror in FALLBACK_MIRRORS:
-        test_html = await fetch_html(mirror, timeout=6, use_jina_fallback=False)
-        if test_html:
-            LOGGER.info(f"Using working fallback mirror for CineVood: {mirror}")
-            _CACHED_CV_DOMAIN = mirror
-            _CACHE_EXPIRE_CV = now + CACHE_TTL
-            return mirror
+    for cand in candidates + FALLBACK_MIRRORS:
+        try:
+            test_html = await fetch_html(cand, timeout=7, use_jina_fallback=False)
+            if test_html:
+                soup = BeautifulSoup(test_html, "html.parser")
+                posts = soup.select("article, div.post, .post-item, div.latest-post, .result-item, .item")
+                if len(posts) > 0:
+                    LOGGER.info(f"Verified working CineVood domain: {cand} ({len(posts)} posts)")
+                    _CACHED_CV_DOMAIN = cand
+                    _CACHE_EXPIRE_CV = now + CACHE_TTL
+                    return cand
+        except Exception:
+            continue
 
     return FALLBACK_MIRRORS[0]
 
