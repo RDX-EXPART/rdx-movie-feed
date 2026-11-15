@@ -37,6 +37,50 @@ class MovieItem:
         return t.strip()
 
 
+def _is_valid_html(text: str) -> bool:
+    if not text or len(text) <= 200:
+        return False
+    return not any(
+        k in text
+        for k in (
+            "<title>Just a moment...</title>",
+            "Title: Just a moment...",
+            "<title>Attention Required!",
+            'id="challenge-error-text"',
+            "cf-browser-verification",
+            "Performing security verification",
+        )
+    )
+
+
+async def _fetch_via_gtranslate(session: aiohttp.ClientSession, url: str) -> Optional[str]:
+    """Fetch Cloudflare-blocked pages via Google Translate proxy and restore original links."""
+    import re
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname
+        if not host:
+            return None
+        gt_host = host.replace("-", "--").replace(".", "-") + ".translate.goog"
+        path = parsed.path or "/"
+        q_part = f"?{parsed.query}&" if parsed.query else "?"
+        gt_url = f"https://{gt_host}{path}{q_part}_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en"
+        async with session.get(gt_url, headers={"User-Agent": DEFAULT_HEADERS["User-Agent"]}) as resp:
+            if resp.status == 200:
+                text = await resp.text(errors="ignore")
+                if _is_valid_html(text):
+                    esc_gt = re.escape(gt_host)
+                    text = re.sub(
+                        rf"https?://{esc_gt}/([^\s\"'\?#]*)(?:\?[^\"'\s>]*)?",
+                        rf"https://{host}/\1",
+                        text,
+                    )
+                    return text
+    except Exception as e:
+        LOGGER.debug(f"Google Translate proxy fallback failed for {url}: {e}")
+    return None
+
+
 async def fetch_html(
     url: str,
     headers: Optional[dict] = None,
@@ -44,7 +88,7 @@ async def fetch_html(
     allow_redirects: bool = True,
     use_jina_fallback: bool = True,
 ) -> Optional[str]:
-    """Fetch URL contents with async aiohttp and optional Jina AI reader fallback on Cloudflare blocks."""
+    """Fetch URL contents with async aiohttp and Jina AI / Google Translate fallbacks on Cloudflare blocks."""
     if not url:
         return None
 
@@ -62,39 +106,41 @@ async def fetch_html(
             async with session.get(url, headers=h, allow_redirects=allow_redirects) as resp:
                 if resp.status == 200:
                     text = await resp.text(errors="ignore")
-                    if len(text) > 200 and not any(
-                        k in text
-                        for k in (
-                            "<title>Just a moment...</title>",
-                            "<title>Attention Required!",
-                            'id="challenge-error-text"',
-                            "cf-browser-verification",
-                            "Performing security verification",
-                        )
-                    ):
+                    if _is_valid_html(text):
                         return text
-                    elif use_jina_fallback:
-                        LOGGER.info(f"Cloudflare challenge detected on 200 for {url}, attempting Jina HTML fallback...")
+                if resp.status in (200, 403, 502, 503) and use_jina_fallback:
+                    LOGGER.info(f"Cloudflare challenge/status {resp.status} for {url}, attempting fallbacks...")
+                    try:
                         jina_url = f"https://r.jina.ai/{url}"
                         async with session.get(jina_url, headers=jina_headers) as jresp:
                             if jresp.status == 200:
-                                return await jresp.text(errors="ignore")
-                elif resp.status in (403, 502, 503) and use_jina_fallback:
-                    LOGGER.info(f"Got {resp.status} for {url}, attempting Jina HTML fallback...")
-                    jina_url = f"https://r.jina.ai/{url}"
-                    async with session.get(jina_url, headers=jina_headers) as jresp:
-                        if jresp.status == 200:
-                            return await jresp.text(errors="ignore")
+                                jtext = await jresp.text(errors="ignore")
+                                if _is_valid_html(jtext):
+                                    return jtext
+                    except Exception:
+                        pass
+                    gt_text = await _fetch_via_gtranslate(session, url)
+                    if gt_text:
+                        return gt_text
                 LOGGER.warning(f"Failed to fetch {url} (HTTP {resp.status})")
     except Exception as e:
         LOGGER.error(f"Error fetching {url}: {e}")
         if use_jina_fallback:
             try:
-                jina_url = f"https://r.jina.ai/{url}"
                 async with aiohttp.ClientSession(timeout=client_timeout) as session:
-                    async with session.get(jina_url, headers=jina_headers) as jresp:
-                        if jresp.status == 200:
-                            return await jresp.text(errors="ignore")
+                    try:
+                        jina_url = f"https://r.jina.ai/{url}"
+                        async with session.get(jina_url, headers=jina_headers) as jresp:
+                            if jresp.status == 200:
+                                jtext = await jresp.text(errors="ignore")
+                                if _is_valid_html(jtext):
+                                    return jtext
+                    except Exception:
+                        pass
+                    gt_text = await _fetch_via_gtranslate(session, url)
+                    if gt_text:
+                        return gt_text
             except Exception as je:
-                LOGGER.debug(f"Jina fallback also failed for {url}: {je}")
+                LOGGER.debug(f"Fallback also failed for {url}: {je}")
     return None
+
