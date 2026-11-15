@@ -20,6 +20,7 @@ from config import (
     ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
     ENABLE_FILMYCAB,
+    ENABLE_MKVDRAMA,
 )
 from scrapers.base import DEFAULT_HEADERS, MovieItem, fetch_html
 from scrapers.bollyflix import extract_qualities as bf_qualities, resolve_active_bollyflix_domain
@@ -34,6 +35,7 @@ from scrapers.katmoviehd import (
     extract_qualities as km_qualities,
     resolve_active_katmoviehd_domain,
 )
+from scrapers.mkvdrama import parse_mkvdrama_cards, resolve_active_mkvdrama_domain
 from scrapers.moviesmod import extract_qualities as mm_qualities, resolve_active_moviesmod_domain
 from scrapers.toonworld import extract_qualities as tw_qualities, resolve_active_toonworld_domain
 from scrapers.vegamovies import extract_qualities as vg_qualities, resolve_active_vega_domain
@@ -608,6 +610,16 @@ async def search_filmycab(query: str, limit: int = 6) -> List[MovieItem]:
     return items
 
 
+async def search_mkvdrama(query: str, limit: int = 6) -> List[MovieItem]:
+    """Search MkvDrama for K-Drama, C-Drama & Asian movies/series."""
+    base_url = await resolve_active_mkvdrama_domain()
+    search_url = f"{base_url}/?s={quote_plus(query)}"
+    html = await fetch_html(search_url, timeout=10)
+    if not html:
+        return []
+    return parse_mkvdrama_cards(html, base_url, limit=limit)
+
+
 async def search_all_sites(query: str, max_total: int = 24) -> List[MovieItem]:
     """Search across all active movie & series websites concurrently."""
     query = query.strip()
@@ -627,6 +639,8 @@ async def search_all_sites(query: str, max_total: int = 24) -> List[MovieItem]:
         tasks.append(search_katmoviehd(query))
     if ENABLE_KATDRAMA:
         tasks.append(search_katdrama(query))
+    if ENABLE_MKVDRAMA:
+        tasks.append(search_mkvdrama(query))
     if ENABLE_MOVIESMOD:
         tasks.append(search_moviesmod(query))
     if ENABLE_EXTRAFLIX:

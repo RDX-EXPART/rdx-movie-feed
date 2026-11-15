@@ -62,7 +62,16 @@ async def fetch_html(
             async with session.get(url, headers=h, allow_redirects=allow_redirects) as resp:
                 if resp.status == 200:
                     text = await resp.text(errors="ignore")
-                    if len(text) > 200 and not any(k in text for k in ("<title>Just a moment...</title>", "challenge-platform", "cf-browser-verification", "Performing security verification")):
+                    if len(text) > 200 and not any(
+                        k in text
+                        for k in (
+                            "<title>Just a moment...</title>",
+                            "<title>Attention Required!",
+                            'id="challenge-error-text"',
+                            "cf-browser-verification",
+                            "Performing security verification",
+                        )
+                    ):
                         return text
                     elif use_jina_fallback:
                         LOGGER.info(f"Cloudflare challenge detected on 200 for {url}, attempting Jina HTML fallback...")

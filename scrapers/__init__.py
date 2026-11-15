@@ -17,6 +17,7 @@ from config import (
     ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
     ENABLE_FILMYCAB,
+    ENABLE_MKVDRAMA,
 )
 from scrapers.base import MovieItem
 from scrapers.bollyflix import scrape_bollyflix
@@ -28,6 +29,7 @@ from scrapers.fourkhdhub import scrape_fourkhdhub
 from scrapers.hdhub4u import scrape_hdhub4u
 from scrapers.katdrama import scrape_katdrama
 from scrapers.katmoviehd import scrape_katmoviehd
+from scrapers.mkvdrama import scrape_mkvdrama
 from scrapers.mlsbd import scrape_mlsbd
 from scrapers.moviesmod import scrape_moviesmod
 from scrapers.skymovieshd import scrape_skymovieshd
@@ -84,6 +86,9 @@ async def fetch_all_sources() -> List[MovieItem]:
     if ENABLE_FILMYCAB:
         tasks.append(scrape_filmycab())
         source_names.append("FilmyCab")
+    if ENABLE_MKVDRAMA:
+        tasks.append(scrape_mkvdrama())
+        source_names.append("MkvDrama")
 
     if not tasks:
         LOGGER.warning("No movie sources are enabled in config!")

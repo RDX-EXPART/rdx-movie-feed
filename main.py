@@ -39,6 +39,7 @@ from config import (
     ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
     ENABLE_FILMYCAB,
+    ENABLE_MKVDRAMA,
     EXTRAFLIX_HUB_URL,
     EXTRAFLIX_URL,
     FILMYCAB_URL,
@@ -51,6 +52,7 @@ from config import (
     KATMOVIEHD_URL,
     LEECH_BOTS,
     LEECH_BOT_USERNAME,
+    MKVDRAMA_URL,
     MLSBD_FEED,
     MODLIST_HUB_URL,
     MOVIESMOD_URL,
@@ -72,6 +74,7 @@ from scrapers.filmycab import resolve_active_filmycab_domain
 from scrapers.hdhub4u import resolve_active_hdhub4u_domain
 from scrapers.katdrama import resolve_active_katdrama_domain
 from scrapers.katmoviehd import resolve_active_katmoviehd_domain
+from scrapers.mkvdrama import resolve_active_mkvdrama_domain
 from scrapers.moviesmod import resolve_active_moviesmod_domain
 from scrapers.skymovieshd import resolve_active_domain
 from scrapers.toonworld import resolve_active_toonworld_domain
@@ -143,6 +146,8 @@ def format_search_card(item: MovieItem, index: int, total: int, query: str) -> s
         "BollyFlix": "🎬",
         "CineVood": "🍿",
         "ToonWorld4All": "🌀",
+        "FilmyCab": "🚕",
+        "MkvDrama": "🌸",
     }
     emoji = site_emojis.get(item.site, "🎬")
     title = escape(item.clean_title())
@@ -331,6 +336,8 @@ async def generate_status_text() -> str:
         sources.append("ToonWorld4All")
     if ENABLE_FILMYCAB:
         sources.append("FilmyCab")
+    if ENABLE_MKVDRAMA:
+        sources.append("MkvDrama")
 
     last_time_str = (
         time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(LAST_CHECK_TIME))
@@ -348,7 +355,7 @@ async def generate_status_text() -> str:
         f"🤖 <b>Leech Bots:</b> {bots_str}\n"
         f"🕒 <b>Last Check:</b> {last_time_str}\n"
         f"⏱ <b>Interval:</b> {CHECK_INTERVAL}s\n"
-        f"🔍 <b>Search Engine:</b> Active across all 14 sites\n"
+        f"🔍 <b>Search Engine:</b> Active across all 15 sites\n"
         f"🗄 <b>DB Type:</b> {'MongoDB Atlas' if DATABASE_URL else 'SQLite (Local)'}"
     )
 
@@ -366,6 +373,7 @@ async def generate_sources_text() -> str:
     cv_domain = await resolve_active_cinevood_domain()
     tw_domain = await resolve_active_toonworld_domain()
     fc_domain = await resolve_active_filmycab_domain()
+    md_domain = await resolve_active_mkvdrama_domain()
 
     return (
         "🌐 <b>Active Monitored Sources & Domains</b>\n\n"
@@ -391,7 +399,8 @@ async def generate_sources_text() -> str:
         f"🍿 <b>CineVood:</b> <code>{cv_domain}</code>\n"
         f"   └ <i>Auto-resolver: {CINEVOOD_HUB_URL}</i>\n"
         f"🌀 <b>ToonWorld4All:</b> <code>{tw_domain}</code>\n"
-        f"🚕 <b>FilmyCab:</b> <code>{fc_domain}</code>\n\n"
+        f"🚕 <b>FilmyCab:</b> <code>{fc_domain}</code>\n"
+        f"🌸 <b>MkvDrama:</b> <code>{md_domain}</code>\n\n"
         "💡 <i>All domains auto-detect from official hubs, but can also be manually overridden in config!</i>"
     )
 
@@ -672,10 +681,10 @@ async def bot_command_poller():
                                     "<code>/search &lt;movie or series name&gt;</code>\n"
                                     "<i>or short alias:</i> <code>/s Avengers</code>\n\n"
                                     "🌐 <b>Supported Platforms:</b>\n"
-                                    "• KatMovieHD (4K UHD) • KatDrama (K-Drama & Asian)\n"
+                                    "• KatMovieHD (4K UHD) • KatDrama & MkvDrama (K-Drama & Asian)\n"
                                     "• DotMovies • BollyFlix (Bollywood & Dual Audio)\n"
                                     "• CineVood / FilmyZilla • ToonWorld4All (Anime)\n"
-                                    "• VegaMovies • MoviesMod • ExtraFlix • HDHub4u\n"
+                                    "• VegaMovies • MoviesMod • ExtraFlix • HDHub4u • FilmyCab\n"
                                     "• MLSBD • 4K-HDHub • SkyMoviesHD\n\n"
                                     "⚡ <i>Instant interactive cards with direct Leech Bot launch!</i>"
                                 )

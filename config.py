@@ -58,6 +58,7 @@ BOLLYFLIX_URL = os.environ.get("BOLLYFLIX_URL", "").strip().rstrip("/")
 CINEVOOD_URL = os.environ.get("CINEVOOD_URL", "").strip().rstrip("/")
 TOONWORLD_URL = os.environ.get("TOONWORLD_URL", "").strip().rstrip("/")
 FILMYCAB_URL = os.environ.get("FILMYCAB_URL", "").strip().rstrip("/")
+MKVDRAMA_URL = os.environ.get("MKVDRAMA_URL", "").strip().rstrip("/")
 
 # Domain Announcement Hubs (Auto-detection for rotating domains)
 VEGA_HUB_URL = os.environ.get("VEGA_HUB_URL", "https://1vegamovies.buzz").strip().rstrip("/")
@@ -85,6 +86,7 @@ ENABLE_BOLLYFLIX = _bool(os.environ.get("ENABLE_BOLLYFLIX", "true"))
 ENABLE_CINEVOOD = _bool(os.environ.get("ENABLE_CINEVOOD", "true"))
 ENABLE_TOONWORLD = _bool(os.environ.get("ENABLE_TOONWORLD", "true"))
 ENABLE_FILMYCAB = _bool(os.environ.get("ENABLE_FILMYCAB", "true"))
+ENABLE_MKVDRAMA = _bool(os.environ.get("ENABLE_MKVDRAMA", "true"))
 
 # On first boot with an empty database, do not spam the channel with past movies.
 # Mark existing items as already posted.
