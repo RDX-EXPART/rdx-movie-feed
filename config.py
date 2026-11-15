@@ -68,7 +68,7 @@ HDHUB4U_HUB_URL = os.environ.get("HDHUB4U_HUB_URL", "https://hdhub4u.deal").stri
 KATMOVIEHD_HUB_URL = os.environ.get("KATMOVIEHD_HUB_URL", "https://katmovieshd.net").strip().rstrip("/")
 DOTMOVIES_HUB_URL = os.environ.get("DOTMOVIES_HUB_URL", "https://dotmovies.army").strip().rstrip("/")
 BOLLYFLIX_HUB_URL = os.environ.get("BOLLYFLIX_HUB_URL", "https://bollyflix.baby").strip().rstrip("/")
-CINEVOOD_HUB_URL = os.environ.get("CINEVOOD_HUB_URL", "https://cinevood.garden").strip().rstrip("/")
+CINEVOOD_HUB_URL = os.environ.get("CINEVOOD_HUB_URL", "https://cinevood.coupons/").strip().rstrip("/")
 
 # Source Toggles
 ENABLE_MLSBD = _bool(os.environ.get("ENABLE_MLSBD", "true"))
