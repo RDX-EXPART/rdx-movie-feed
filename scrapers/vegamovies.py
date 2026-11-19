@@ -16,8 +16,8 @@ _CACHE_EXPIRE_VEGA: float = 0
 CACHE_TTL = 3600  # 1 hour cache
 
 FALLBACK_MIRRORS = [
-    "https://vegamovis.skin",
-    "https://vegamovies.lease",
+    "https://vegamovies.free",
+    "https://vegamovies.latino",
     "https://1vegamovies.tw",
     "https://vegamovies.domains",
 ]
