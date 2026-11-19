@@ -17,8 +17,9 @@ _CACHE_EXPIRE_KM: float = 0
 CACHE_TTL = 3600
 
 FALLBACK_MIRRORS = [
-    "https://new3.katmoviehd.top",
+    "https://new.katmoviehd.top",
     "https://new2.katmoviehd.top",
+    "https://new3.katmoviehd.top",
     "https://katmoviehd.fans",
     "https://katmoviehd.rodeo",
     "https://katmovieshd.net",
@@ -50,20 +51,27 @@ async def resolve_active_katmoviehd_domain() -> str:
             m = re.findall(r'https?://(?:[a-zA-Z0-9\-]+\.)?katmoviehd\.[a-z0-9]+/?', html, re.I)
             if m:
                 detected = m[0].rstrip("/")
-                LOGGER.info(f"Auto-detected KatMovieHD domain from hub: {detected}")
-                _CACHED_KM_DOMAIN = detected
-                _CACHE_EXPIRE_KM = now + CACHE_TTL
-                return detected
+                test_html = await fetch_html(detected, timeout=6)
+                if test_html and (_parse_items_from_svelte(test_html, detected) or len(test_html) > 5000):
+                    LOGGER.info(f"Auto-detected working KatMovieHD domain from hub: {detected}")
+                    _CACHED_KM_DOMAIN = detected
+                    _CACHE_EXPIRE_KM = now + CACHE_TTL
+                    return detected
     except Exception as e:
-        LOGGER.warning(f"Failed to auto-detect KatMovieHD domain: {e}")
+        LOGGER.warning(f"Failed to auto-detect KatMovieHD domain from hub: {e}")
 
     for mirror in FALLBACK_MIRRORS:
-        test_html = await fetch_html(mirror, timeout=6, use_jina_fallback=False)
-        if test_html:
-            LOGGER.info(f"Using working fallback mirror for KatMovieHD: {mirror}")
-            _CACHED_KM_DOMAIN = mirror
-            _CACHE_EXPIRE_KM = now + CACHE_TTL
-            return mirror
+        try:
+            test_html = await fetch_html(mirror, timeout=6)
+            if test_html:
+                items = _parse_items_from_svelte(test_html, mirror)
+                if items or len(test_html) > 5000:
+                    LOGGER.info(f"Using working fallback mirror for KatMovieHD: {mirror}")
+                    _CACHED_KM_DOMAIN = mirror
+                    _CACHE_EXPIRE_KM = now + CACHE_TTL
+                    return mirror
+        except Exception:
+            continue
 
     return FALLBACK_MIRRORS[0]
 
@@ -101,23 +109,9 @@ def _parse_items_from_svelte(html: str, base_url: str) -> List[MovieItem]:
     return items
 
 
-async def scrape_katmoviehd() -> List[MovieItem]:
-    """Scrape latest items from KatMovieHD."""
-    base_url = await resolve_active_katmoviehd_domain()
-    LOGGER.info(f"Fetching KatMovieHD releases from {base_url}...")
-
-    html = await fetch_html(base_url)
-    if not html:
-        LOGGER.warning(f"Failed to fetch KatMovieHD HTML from {base_url}.")
-        return []
-
-    # 1. Try SvelteKit extraction
-    items = _parse_items_from_svelte(html, base_url)
-    if items:
-        LOGGER.info(f"KatMovieHD scraper found {len(items)} items via SvelteKit data.")
-        return items
-
-    # 2. Traditional HTML fallback
+def _parse_items_from_html(html: str, base_url: str) -> List[MovieItem]:
+    """Traditional HTML fallback parser."""
+    items = []
     seen_urls = set()
     try:
         soup = BeautifulSoup(html, "html.parser")
@@ -154,6 +148,45 @@ async def scrape_katmoviehd() -> List[MovieItem]:
                 )
     except Exception as e:
         LOGGER.error(f"Error parsing KatMovieHD HTML: {e}")
-
-    LOGGER.info(f"KatMovieHD scraper found {len(items)} items.")
     return items
+
+
+async def scrape_katmoviehd() -> List[MovieItem]:
+    """Scrape latest items from KatMovieHD with mirror retries."""
+    global _CACHED_KM_DOMAIN, _CACHE_EXPIRE_KM
+    base_url = await resolve_active_katmoviehd_domain()
+    LOGGER.info(f"Fetching KatMovieHD releases from {base_url}...")
+
+    html = await fetch_html(base_url)
+    items = []
+    if html:
+        items = _parse_items_from_svelte(html, base_url)
+        if not items:
+            items = _parse_items_from_html(html, base_url)
+
+    if items:
+        LOGGER.info(f"KatMovieHD scraper found {len(items)} items from {base_url}.")
+        return items
+
+    # Fallback mirror retry if primary domain returned 0 items
+    LOGGER.warning(f"Primary KatMovieHD domain {base_url} returned 0 items. Retrying fallback mirrors...")
+    for mirror in FALLBACK_MIRRORS:
+        if mirror.rstrip("/") == base_url.rstrip("/"):
+            continue
+        try:
+            m_html = await fetch_html(mirror, timeout=8)
+            if not m_html:
+                continue
+            m_items = _parse_items_from_svelte(m_html, mirror)
+            if not m_items:
+                m_items = _parse_items_from_html(m_html, mirror)
+            if m_items:
+                LOGGER.info(f"KatMovieHD scraper succeeded via mirror {mirror} with {len(m_items)} items.")
+                _CACHED_KM_DOMAIN = mirror
+                _CACHE_EXPIRE_KM = time.time() + CACHE_TTL
+                return m_items
+        except Exception as me:
+            LOGGER.debug(f"KatMovieHD mirror {mirror} failed: {me}")
+
+    LOGGER.info(f"KatMovieHD scraper found 0 items across all mirrors.")
+    return []

@@ -61,6 +61,7 @@ FILMYCAB_URL = os.environ.get("FILMYCAB_URL", "").strip().rstrip("/")
 MKVDRAMA_URL = os.environ.get("MKVDRAMA_URL", "").strip().rstrip("/")
 TAMILMV_URL = os.environ.get("TAMILMV_URL", "https://www.1tamilmv.fi").strip().rstrip("/")
 CLOUDMOVIEZ_URL = os.environ.get("CLOUDMOVIEZ_URL", "https://cloudmoviez.space").strip().rstrip("/")
+PROXY_API_URL = os.environ.get("PROXY_API_URL", "").strip().rstrip("/")
 
 # Domain Announcement Hubs (Auto-detection for rotating domains)
 VEGA_HUB_URL = os.environ.get("VEGA_HUB_URL", "https://1vegamovies.buzz").strip().rstrip("/")

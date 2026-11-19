@@ -62,13 +62,26 @@ async def resolve_active_cloudmoviez_domain() -> str:
 
 
 async def scrape_cloudmoviez() -> List[MovieItem]:
-    """Scrape latest items from CloudMoviez."""
+    """Scrape latest items from CloudMoviez with fallback mirrors."""
+    global _CACHED_CM_DOMAIN, _CACHE_EXPIRE_CM
     base_url = await resolve_active_cloudmoviez_domain()
     LOGGER.info(f"Fetching CloudMoviez releases from {base_url}...")
 
     html = await fetch_html(base_url)
     if not html:
-        LOGGER.warning(f"Failed to fetch CloudMoviez HTML from {base_url}.")
+        for mirror in FALLBACK_MIRRORS:
+            if mirror.rstrip("/") == base_url.rstrip("/"):
+                continue
+            LOGGER.info(f"Retrying CloudMoviez with fallback mirror {mirror}...")
+            html = await fetch_html(mirror, timeout=10)
+            if html:
+                base_url = mirror
+                _CACHED_CM_DOMAIN = mirror
+                _CACHE_EXPIRE_CM = time.time() + CACHE_TTL
+                break
+
+    if not html:
+        LOGGER.warning(f"Failed to fetch CloudMoviez HTML from {base_url} (Cloudflare Turnstile protected). Set PROXY_API_URL to bypass.")
         return []
 
     items = []
