@@ -568,10 +568,63 @@ async def search_vegamovies(query: str, limit: int = 6) -> List[MovieItem]:
 async def search_filmycab(query: str, limit: int = 6) -> List[MovieItem]:
     """Search FilmyCab for movies and series."""
     base_url = await resolve_active_filmycab_domain()
-    search_url = f"{base_url}/site-search.html"
     items = []
     seen = set()
+
+    # 1. Try modern filmycab.store GET /?s= search
     try:
+        search_url = f"{base_url}/?s={quote_plus(query)}"
+        html = await fetch_html(search_url, timeout=12)
+        if html:
+            soup = BeautifulSoup(html, "html.parser")
+            cards = soup.select("a.fch-card, article.fch-slide")
+            if not cards:
+                cards = soup.find_all("a", href=lambda h: h and re.search(r"/\d{4}/\d{2}/\d{2}/[^/]+/?$", h))
+
+            for c in cards:
+                a = c if c.name == "a" else c.find("a", href=True)
+                if not a or not a.get("href"):
+                    continue
+                url = urljoin(base_url, a["href"])
+                if url in seen or any(x in url for x in ("/category/", "/tag/", "/page/")):
+                    continue
+                seen.add(url)
+
+                img = c.find("img")
+                poster = None
+                if img:
+                    poster = img.get("src") or img.get("data-src")
+                    if poster:
+                        poster = urljoin(base_url, poster)
+
+                h = c.find(["h2", "h3", "h4"])
+                raw_title = h.get_text(strip=True) if h else a.get_text(" ", strip=True)
+                raw_title = re.sub(r"^[#\s]+", "", raw_title).strip()
+                raw_title = re.sub(r"^(?:Download|Watch)\s*", "", raw_title, flags=re.I).strip()
+                if not raw_title:
+                    raw_title = url.rstrip("/").split("/")[-1].replace("-", " ")
+
+                if raw_title and len(raw_title) > 3:
+                    items.append(
+                        MovieItem(
+                            site="FilmyCab",
+                            title=raw_title,
+                            url=url,
+                            poster=poster,
+                            quality=fc_qualities(raw_title),
+                        )
+                    )
+                if len(items) >= limit:
+                    break
+
+            if items:
+                return items
+    except Exception as e:
+        LOGGER.debug(f"FilmyCab GET search error: {e}")
+
+    # 2. Try classic filmycab.surf POST /site-search.html
+    try:
+        search_url = f"{base_url}/site-search.html"
         h = dict(DEFAULT_HEADERS)
         h["Content-Type"] = "application/x-www-form-urlencoded"
         h["Referer"] = base_url
@@ -620,7 +673,7 @@ async def search_filmycab(query: str, limit: int = 6) -> List[MovieItem]:
                         if len(items) >= limit:
                             break
     except Exception as e:
-        LOGGER.debug(f"FilmyCab search error: {e}")
+        LOGGER.debug(f"FilmyCab classic search error: {e}")
     return items
 
 
