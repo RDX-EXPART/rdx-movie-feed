@@ -16,9 +16,9 @@ _CACHE_EXPIRE_VEGA: float = 0
 CACHE_TTL = 3600  # 1 hour cache
 
 FALLBACK_MIRRORS = [
+    "https://vegamovis.skin",
     "https://vegamovies.lease",
     "https://1vegamovies.tw",
-    "https://vegamovis.skin",
     "https://vegamovies.domains",
 ]
 
@@ -50,7 +50,7 @@ async def resolve_active_vega_domain() -> str:
             soup = BeautifulSoup(html, "html.parser")
             for a in soup.find_all("a"):
                 href = a.get("href", "")
-                if "vegamovies" in href.lower() and href.startswith("http"):
+                if "vegamovies" in href.lower() and href.startswith("http") and not href.endswith(".free") and not href.endswith(".free/"):
                     detected = href.rstrip("/")
                     LOGGER.info(f"Auto-detected VegaMovies domain from hub: {detected}")
                     _CACHED_VEGA_DOMAIN = detected
@@ -58,8 +58,8 @@ async def resolve_active_vega_domain() -> str:
                     return detected
 
             # Regex search in raw HTML text
-            m = re.search(r"https?://[a-zA-Z0-9\.\-]*vegamovies\.[a-zA-Z0-9\.\-]+", html, re.I)
-            if m:
+            m = re.search(r"https?://[a-zA-Z0-9\.\-]*vegamov[a-zA-Z0-9\.\-]+", html, re.I)
+            if m and not m.group(0).endswith(".free"):
                 detected = m.group(0).rstrip("/")
                 LOGGER.info(f"Auto-detected VegaMovies domain via regex: {detected}")
                 _CACHED_VEGA_DOMAIN = detected

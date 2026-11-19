@@ -17,9 +17,9 @@ _CACHE_EXPIRE_BF: float = 0
 CACHE_TTL = 3600
 
 FALLBACK_MIRRORS = [
+    "https://new1.bollyflix.tours",
+    "https://bollyflix.tours",
     "https://bollyflix.church",
-    "https://bollyflix.deal",
-    "https://bollyflix.baby",
     "https://bollyflix.nz",
 ]
 
@@ -42,20 +42,22 @@ async def resolve_active_bollyflix_domain() -> str:
         return _CACHED_BF_DOMAIN
 
     LOGGER.info(f"Auto-detecting BollyFlix domain from hub {BOLLYFLIX_HUB_URL}...")
-    try:
-        hub_redirect = f"{BOLLYFLIX_HUB_URL.rstrip('/')}/?re=bollyflix"
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8)) as session:
-            async with session.get(hub_redirect, allow_redirects=True) as resp:
-                if resp.status == 200:
+    for hub in (BOLLYFLIX_HUB_URL, "https://bollyflix.deal", "https://bollyflix.baby"):
+        if not hub:
+            continue
+        try:
+            hub_redirect = f"{hub.rstrip('/')}/?re=bollyflix"
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=8)) as session:
+                async with session.get(hub_redirect, allow_redirects=True) as resp:
                     parsed = urlparse(str(resp.url))
                     target = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
-                    if "baby" not in target and "bi" not in target:
+                    if not any(k in target for k in ("baby", "deal", "bi", "church")):
                         LOGGER.info(f"Auto-detected BollyFlix domain via redirect: {target}")
                         _CACHED_BF_DOMAIN = target
                         _CACHE_EXPIRE_BF = now + CACHE_TTL
                         return target
-    except Exception as e:
-        LOGGER.warning(f"Failed to auto-detect BollyFlix domain via redirect: {e}")
+        except Exception as e:
+            LOGGER.warning(f"Failed to auto-detect BollyFlix domain from {hub}: {e}")
 
     for mirror in FALLBACK_MIRRORS:
         test_html = await fetch_html(mirror, timeout=6, use_jina_fallback=False)

@@ -27,19 +27,21 @@ from config import (
     DOTMOVIES_URL,
     ENABLE_BOLLYFLIX,
     ENABLE_CINEVOOD,
+    ENABLE_CLOUDMOVIEZ,
     ENABLE_DOTMOVIES,
     ENABLE_EXTRAFLIX,
+    ENABLE_FILMYCAB,
     ENABLE_FOURKHDHUB,
     ENABLE_HDHUB4U,
     ENABLE_KATDRAMA,
     ENABLE_KATMOVIEHD,
+    ENABLE_MKVDRAMA,
     ENABLE_MLSBD,
     ENABLE_MOVIESMOD,
     ENABLE_SKYMOVIES,
+    ENABLE_TAMILMV,
     ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
-    ENABLE_FILMYCAB,
-    ENABLE_MKVDRAMA,
     EXTRAFLIX_HUB_URL,
     EXTRAFLIX_URL,
     FILMYCAB_URL,
@@ -58,6 +60,7 @@ from config import (
     MOVIESMOD_URL,
     SKYBAP_URL,
     SKYMOVIES_URL,
+    TAMILMV_URL,
     TOONWORLD_URL,
     VEGA_HUB_URL,
     VEGAMOVIES_URL,
@@ -68,6 +71,7 @@ from scrapers import fetch_all_sources
 from scrapers.base import MovieItem
 from scrapers.bollyflix import resolve_active_bollyflix_domain
 from scrapers.cinevood import resolve_active_cinevood_domain
+from scrapers.cloudmoviez import resolve_active_cloudmoviez_domain
 from scrapers.dotmovies import resolve_active_dotmovies_domain
 from scrapers.extraflix import resolve_active_extraflix_domain
 from scrapers.filmycab import resolve_active_filmycab_domain
@@ -77,9 +81,10 @@ from scrapers.katmoviehd import resolve_active_katmoviehd_domain
 from scrapers.mkvdrama import resolve_active_mkvdrama_domain
 from scrapers.moviesmod import resolve_active_moviesmod_domain
 from scrapers.skymovieshd import resolve_active_domain
+from scrapers.tamilmv import resolve_active_tamilmv_domain
 from scrapers.toonworld import resolve_active_toonworld_domain
 from scrapers.vegamovies import resolve_active_vega_domain
-from search import search_all_sites
+from search import SITE_SEARCHERS, search_all_sites, search_single_site
 from web import start_web_server
 
 # Configure logging
@@ -146,8 +151,11 @@ def format_search_card(item: MovieItem, index: int, total: int, query: str) -> s
         "BollyFlix": "🎬",
         "CineVood": "🍿",
         "ToonWorld4All": "🌀",
+        "ToonWorld": "🌀",
         "FilmyCab": "🚕",
         "MkvDrama": "🌸",
+        "1TamilMV": "🐯",
+        "CloudMoviez": "🎬",
     }
     emoji = site_emojis.get(item.site, "🎬")
     title = escape(item.clean_title())
@@ -155,8 +163,12 @@ def format_search_card(item: MovieItem, index: int, total: int, query: str) -> s
     site = escape(item.site)
     q_esc = escape(query)
 
+    banner = ""
+    if item.poster:
+        banner = f'<a href="{escape(item.poster)}">&#8205;</a>'
+
     return (
-        "🔍 <b>RDX Premium Movie Search</b>\n"
+        f"{banner}🔍 <b>RDX Premium Movie Search</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━\n"
         f"🎬 <b>{title}</b>\n\n"
         f"🏷 <b>Source:</b> {emoji} <b>{site}</b>\n"
@@ -181,15 +193,35 @@ def build_search_keyboard(item: MovieItem, index: int, total: int, search_id: st
     ]
 
     nav_row = []
-    if index > 0:
-        nav_row.append({"text": "◀️ Prev", "callback_data": f"s_nav:{search_id}:{index-1}"})
-    nav_row.append({"text": f"📄 {index+1}/{total}", "callback_data": "s_noop"})
-    if index < total - 1:
-        nav_row.append({"text": "Next ▶️", "callback_data": f"s_nav:{search_id}:{index+1}"})
+    if total > 1:
+        if index > 0:
+            nav_row.append({"text": "◀️ Prev", "callback_data": f"s_nav:{search_id}:{index-1}"})
+        nav_row.append({"text": f"📄 {index+1}/{total}", "callback_data": "s_noop"})
+        if index < total - 1:
+            nav_row.append({"text": "Next ▶️", "callback_data": f"s_nav:{search_id}:{index+1}"})
+        kb.append(nav_row)
 
-    kb.append(nav_row)
+    kb.append([{"text": "🔙 Choose Another Site", "callback_data": f"s_back:{search_id}"}])
     kb.append([{"text": "❌ Close", "callback_data": f"s_close:{search_id}"}])
     return {"inline_keyboard": kb}
+
+
+def build_site_selector_keyboard(search_id: str) -> dict:
+    buttons = []
+    current_row = []
+    for key, data in SITE_SEARCHERS.items():
+        if data.get("enabled", True):
+            btn_text = f"{data['emoji']} {data['name']}"
+            current_row.append({"text": btn_text, "callback_data": f"s_site:{search_id}:{key}"})
+            if len(current_row) == 2:
+                buttons.append(current_row)
+                current_row = []
+    if current_row:
+        buttons.append(current_row)
+
+    buttons.append([{"text": "🌐 Search All Sites", "callback_data": f"s_site:{search_id}:all"}])
+    buttons.append([{"text": "❌ Cancel", "callback_data": f"s_close:{search_id}"}])
+    return {"inline_keyboard": buttons}
 
 
 async def check_restart_notification(session: aiohttp.ClientSession):
@@ -338,6 +370,10 @@ async def generate_status_text() -> str:
         sources.append("FilmyCab")
     if ENABLE_MKVDRAMA:
         sources.append("MkvDrama")
+    if ENABLE_TAMILMV:
+        sources.append("1TamilMV")
+    if ENABLE_CLOUDMOVIEZ:
+        sources.append("CloudMoviez")
 
     last_time_str = (
         time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(LAST_CHECK_TIME))
@@ -355,7 +391,7 @@ async def generate_status_text() -> str:
         f"🤖 <b>Leech Bots:</b> {bots_str}\n"
         f"🕒 <b>Last Check:</b> {last_time_str}\n"
         f"⏱ <b>Interval:</b> {CHECK_INTERVAL}s\n"
-        f"🔍 <b>Search Engine:</b> Active across all 15 sites\n"
+        f"🔍 <b>Search Engine:</b> Active across all 17 sites\n"
         f"🗄 <b>DB Type:</b> {'MongoDB Atlas' if DATABASE_URL else 'SQLite (Local)'}"
     )
 
@@ -374,6 +410,8 @@ async def generate_sources_text() -> str:
     tw_domain = await resolve_active_toonworld_domain()
     fc_domain = await resolve_active_filmycab_domain()
     md_domain = await resolve_active_mkvdrama_domain()
+    tmv_domain = await resolve_active_tamilmv_domain()
+    cm_domain = await resolve_active_cloudmoviez_domain()
 
     return (
         "🌐 <b>Active Monitored Sources & Domains</b>\n\n"
@@ -400,7 +438,9 @@ async def generate_sources_text() -> str:
         f"   └ <i>Auto-resolver: {CINEVOOD_HUB_URL}</i>\n"
         f"🌀 <b>ToonWorld4All:</b> <code>{tw_domain}</code>\n"
         f"🚕 <b>FilmyCab:</b> <code>{fc_domain}</code>\n"
-        f"🌸 <b>MkvDrama:</b> <code>{md_domain}</code>\n\n"
+        f"🌸 <b>MkvDrama:</b> <code>{md_domain}</code>\n"
+        f"🐯 <b>1TamilMV:</b> <code>{tmv_domain}</code>\n"
+        f"🎬 <b>CloudMoviez:</b> <code>{cm_domain}</code>\n\n"
         "💡 <i>All domains auto-detect from official hubs, but can also be manually overridden in config!</i>"
     )
 
@@ -552,6 +592,129 @@ async def bot_command_poller():
                                 if not is_admin:
                                     continue
                                 await restart_bot(session, cb_chat_id, update_id=update["update_id"])
+                            elif cb_data.startswith("s_site:"):
+                                parts = cb_data.split(":")
+                                if len(parts) == 3:
+                                    search_id, site_key = parts[1], parts[2]
+                                    s_data = SEARCH_CACHE.get(search_id)
+                                    if not s_data:
+                                        await session.post(
+                                            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                                            json={
+                                                "chat_id": cb_chat_id,
+                                                "message_id": cb_msg_id,
+                                                "text": "⚠️ <i>This search session has expired. Please use <code>/search &lt;query&gt;</code> again.</i>",
+                                                "parse_mode": "HTML",
+                                            },
+                                        )
+                                        continue
+
+                                    query = s_data["query"]
+                                    site_info = SITE_SEARCHERS.get(site_key, {"name": "All Sites", "emoji": "🌐"})
+                                    site_name = site_info["name"] if site_key != "all" else "All Platforms"
+                                    site_emoji = site_info.get("emoji", "🎬")
+
+                                    # Edit message to "Searching..."
+                                    searching_text = (
+                                        f"🔄 <i>Searching in <b>{site_emoji} {site_name}</b> for</i> <b>\"{escape(query)}\"</b>...\n"
+                                        "⏳ <i>Please wait a moment...</i>"
+                                    )
+                                    await session.post(
+                                        f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                                        json={
+                                            "chat_id": cb_chat_id,
+                                            "message_id": cb_msg_id,
+                                            "text": searching_text,
+                                            "parse_mode": "HTML",
+                                        },
+                                    )
+
+                                    # Perform search
+                                    if site_key == "all":
+                                        items = await search_all_sites(query, max_total=24)
+                                    else:
+                                        items = await search_single_site(site_key, query, limit=8)
+
+                                    s_data["items"] = items
+                                    s_data["site"] = site_key
+                                    s_data["ts"] = time.time()
+
+                                    if items:
+                                        first_item = items[0]
+                                        card_text = format_search_card(first_item, 0, len(items), query)
+                                        kb = build_search_keyboard(first_item, 0, len(items), search_id)
+                                        await session.post(
+                                            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                                            json={
+                                                "chat_id": cb_chat_id,
+                                                "message_id": cb_msg_id,
+                                                "text": card_text,
+                                                "parse_mode": "HTML",
+                                                "disable_web_page_preview": False,
+                                                "reply_markup": kb,
+                                            },
+                                        )
+                                    else:
+                                        not_found_text = (
+                                            f"❌ <b>This movie/series was not found in {site_emoji} {site_name}!</b>\n\n"
+                                            f"🔎 <b>Query:</b> <code>{escape(query)}</code>\n\n"
+                                            "💡 <i>Would you like to try searching another site or search across all platforms?</i>"
+                                        )
+                                        not_found_kb = {
+                                            "inline_keyboard": [
+                                                [{"text": "🔙 Choose Another Site", "callback_data": f"s_back:{search_id}"}],
+                                                [{"text": "🌐 Search All Sites", "callback_data": f"s_site:{search_id}:all"}],
+                                                [{"text": "❌ Close", "callback_data": f"s_close:{search_id}"}],
+                                            ]
+                                        }
+                                        await session.post(
+                                            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                                            json={
+                                                "chat_id": cb_chat_id,
+                                                "message_id": cb_msg_id,
+                                                "text": not_found_text,
+                                                "parse_mode": "HTML",
+                                                "reply_markup": not_found_kb,
+                                            },
+                                        )
+                                continue
+
+                            elif cb_data.startswith("s_back:"):
+                                parts = cb_data.split(":")
+                                if len(parts) == 2:
+                                    search_id = parts[1]
+                                    s_data = SEARCH_CACHE.get(search_id)
+                                    if not s_data:
+                                        await session.post(
+                                            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                                            json={
+                                                "chat_id": cb_chat_id,
+                                                "message_id": cb_msg_id,
+                                                "text": "⚠️ <i>This search session has expired. Please use <code>/search &lt;query&gt;</code> again.</i>",
+                                                "parse_mode": "HTML",
+                                            },
+                                        )
+                                        continue
+
+                                    query = s_data["query"]
+                                    choose_text = (
+                                        "🔍 <b>RDX Movie & Series Search</b>\n\n"
+                                        f"🔎 <b>Query:</b> <code>{escape(query)}</code>\n\n"
+                                        "<i>Please choose which site you want to search in:</i>"
+                                    )
+                                    reply_markup = build_site_selector_keyboard(search_id)
+                                    await session.post(
+                                        f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                                        json={
+                                            "chat_id": cb_chat_id,
+                                            "message_id": cb_msg_id,
+                                            "text": choose_text,
+                                            "parse_mode": "HTML",
+                                            "reply_markup": reply_markup,
+                                        },
+                                    )
+                                continue
+
                             elif cb_data.startswith("s_nav:"):
                                 parts = cb_data.split(":")
                                 if len(parts) == 3:
@@ -579,6 +742,7 @@ async def bot_command_poller():
                                                     "message_id": cb_msg_id,
                                                     "text": caption,
                                                     "parse_mode": "HTML",
+                                                    "disable_web_page_preview": False,
                                                     "reply_markup": reply_markup,
                                                 }
                                                 await session.post(edit_txt_url, json=txt_payload)
@@ -681,12 +845,11 @@ async def bot_command_poller():
                                     "<code>/search &lt;movie or series name&gt;</code>\n"
                                     "<i>or short alias:</i> <code>/s Avengers</code>\n\n"
                                     "🌐 <b>Supported Platforms:</b>\n"
-                                    "• KatMovieHD (4K UHD) • KatDrama & MkvDrama (K-Drama & Asian)\n"
-                                    "• DotMovies • BollyFlix (Bollywood & Dual Audio)\n"
-                                    "• CineVood / FilmyZilla • ToonWorld4All (Anime)\n"
-                                    "• VegaMovies • MoviesMod • ExtraFlix • HDHub4u • FilmyCab\n"
-                                    "• MLSBD • 4K-HDHub • SkyMoviesHD\n\n"
-                                    "⚡ <i>Instant interactive cards with direct Leech Bot launch!</i>"
+                                    "• VegaMovies • MoviesMod • HDHub4u • 4K-HDHub\n"
+                                    "• BollyFlix • CineVood • KatMovieHD • DotMovies\n"
+                                    "• ExtraFlix • FilmyCab • 1TamilMV • CloudMoviez\n"
+                                    "• MkvDrama • KatDrama • ToonWorld • MLSBD\n\n"
+                                    "⚡ <i>Instant interactive site selector with direct Leech Bot launch!</i>"
                                 )
                                 await session.post(
                                     f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
@@ -695,82 +858,30 @@ async def bot_command_poller():
                                 continue
 
                             query = cmd_parts[1].strip()
-                            wait_msg_id = None
-                            try:
-                                wait_res = await session.post(
-                                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                                    json={
-                                        "chat_id": chat_id,
-                                        "text": f"🔍 <i>Searching across all platforms for</i> <b>\"{escape(query)}\"</b>...",
-                                        "parse_mode": "HTML",
-                                    },
-                                )
-                                wait_data = await wait_res.json()
-                                if wait_data.get("ok"):
-                                    wait_msg_id = wait_data["result"]["message_id"]
-                            except Exception:
-                                pass
-
-                            items = await search_all_sites(query, max_total=24)
-
-                            if wait_msg_id:
-                                try:
-                                    await session.post(
-                                        f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-                                        json={"chat_id": chat_id, "message_id": wait_msg_id},
-                                    )
-                                except Exception:
-                                    pass
-
-                            if not items:
-                                await session.post(
-                                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                                    json={
-                                        "chat_id": chat_id,
-                                        "text": f"❌ <b>No results found for:</b> <i>\"{escape(query)}\"</i>\n💡 <i>Try searching with a shorter title or different spelling!</i>",
-                                        "parse_mode": "HTML",
-                                    },
-                                )
-                                continue
-
                             search_id = str(uuid.uuid4())[:8]
-                            SEARCH_CACHE[search_id] = {"query": query, "items": items, "ts": time.time()}
+                            SEARCH_CACHE[search_id] = {
+                                "query": query,
+                                "items": [],
+                                "site": None,
+                                "chat_id": chat_id,
+                                "ts": time.time(),
+                            }
 
-                            first_item = items[0]
-                            caption = format_search_card(first_item, 0, len(items), query)
-                            reply_markup = build_search_keyboard(first_item, 0, len(items), search_id)
-
-                            posted = False
-                            if first_item.poster:
-                                photo_payload = {
+                            choose_text = (
+                                "🔍 <b>RDX Movie & Series Search</b>\n\n"
+                                f"🔎 <b>Query:</b> <code>{escape(query)}</code>\n\n"
+                                "<i>Please choose which site you want to search in:</i>"
+                            )
+                            reply_markup = build_site_selector_keyboard(search_id)
+                            await session.post(
+                                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                                json={
                                     "chat_id": chat_id,
-                                    "photo": first_item.poster,
-                                    "caption": caption,
+                                    "text": choose_text,
                                     "parse_mode": "HTML",
                                     "reply_markup": reply_markup,
-                                }
-                                try:
-                                    async with session.post(
-                                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-                                        json=photo_payload,
-                                    ) as p_resp:
-                                        p_data = await p_resp.json()
-                                        if p_data.get("ok"):
-                                            posted = True
-                                except Exception:
-                                    posted = False
-
-                            if not posted:
-                                msg_payload = {
-                                    "chat_id": chat_id,
-                                    "text": caption,
-                                    "parse_mode": "HTML",
-                                    "reply_markup": reply_markup,
-                                }
-                                await session.post(
-                                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                                    json=msg_payload,
-                                )
+                                },
+                            )
                             continue
 
             except Exception as e:

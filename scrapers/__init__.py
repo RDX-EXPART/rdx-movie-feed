@@ -18,10 +18,13 @@ from config import (
     ENABLE_VEGAMOVIES,
     ENABLE_FILMYCAB,
     ENABLE_MKVDRAMA,
+    ENABLE_TAMILMV,
+    ENABLE_CLOUDMOVIEZ,
 )
 from scrapers.base import MovieItem
 from scrapers.bollyflix import scrape_bollyflix
 from scrapers.cinevood import scrape_cinevood
+from scrapers.cloudmoviez import scrape_cloudmoviez
 from scrapers.dotmovies import scrape_dotmovies
 from scrapers.extraflix import scrape_extraflix
 from scrapers.filmycab import scrape_filmycab
@@ -33,6 +36,7 @@ from scrapers.mkvdrama import scrape_mkvdrama
 from scrapers.mlsbd import scrape_mlsbd
 from scrapers.moviesmod import scrape_moviesmod
 from scrapers.skymovieshd import scrape_skymovieshd
+from scrapers.tamilmv import scrape_tamilmv
 from scrapers.toonworld import scrape_toonworld
 from scrapers.vegamovies import scrape_vegamovies
 
@@ -89,6 +93,12 @@ async def fetch_all_sources() -> List[MovieItem]:
     if ENABLE_MKVDRAMA:
         tasks.append(scrape_mkvdrama())
         source_names.append("MkvDrama")
+    if ENABLE_TAMILMV:
+        tasks.append(scrape_tamilmv())
+        source_names.append("1TamilMV")
+    if ENABLE_CLOUDMOVIEZ:
+        tasks.append(scrape_cloudmoviez())
+        source_names.append("CloudMoviez")
 
     if not tasks:
         LOGGER.warning("No movie sources are enabled in config!")

@@ -3,7 +3,7 @@ import json
 import logging
 import re
 from typing import List, Optional
-from urllib.parse import quote_plus, urljoin
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -11,20 +11,26 @@ from bs4 import BeautifulSoup
 from config import (
     ENABLE_BOLLYFLIX,
     ENABLE_CINEVOOD,
+    ENABLE_CLOUDMOVIEZ,
     ENABLE_DOTMOVIES,
     ENABLE_EXTRAFLIX,
+    ENABLE_FILMYCAB,
+    ENABLE_FOURKHDHUB,
     ENABLE_HDHUB4U,
     ENABLE_KATDRAMA,
     ENABLE_KATMOVIEHD,
+    ENABLE_MKVDRAMA,
+    ENABLE_MLSBD,
     ENABLE_MOVIESMOD,
+    ENABLE_TAMILMV,
     ENABLE_TOONWORLD,
     ENABLE_VEGAMOVIES,
-    ENABLE_FILMYCAB,
-    ENABLE_MKVDRAMA,
+    FOURKHDHUB_URL,
 )
 from scrapers.base import DEFAULT_HEADERS, MovieItem, fetch_html
 from scrapers.bollyflix import extract_qualities as bf_qualities, resolve_active_bollyflix_domain
 from scrapers.cinevood import extract_qualities as cv_qualities, resolve_active_cinevood_domain
+from scrapers.cloudmoviez import search_cloudmoviez
 from scrapers.dotmovies import extract_qualities as dm_qualities, resolve_active_dotmovies_domain
 from scrapers.extraflix import extract_qualities as ef_qualities, resolve_active_extraflix_domain
 from scrapers.filmycab import extract_qualities as fc_qualities, resolve_active_filmycab_domain
@@ -36,7 +42,9 @@ from scrapers.katmoviehd import (
     resolve_active_katmoviehd_domain,
 )
 from scrapers.mkvdrama import parse_mkvdrama_cards, resolve_active_mkvdrama_domain
+from scrapers.mlsbd import extract_qualities as mlsbd_qualities
 from scrapers.moviesmod import extract_qualities as mm_qualities, resolve_active_moviesmod_domain
+from scrapers.tamilmv import search_tamilmv
 from scrapers.toonworld import extract_qualities as tw_qualities, resolve_active_toonworld_domain
 from scrapers.vegamovies import extract_qualities as vg_qualities, resolve_active_vega_domain
 
@@ -44,6 +52,12 @@ LOGGER = logging.getLogger("SearchEngine")
 
 
 def _clean_post_title(title: str) -> str:
+    title = re.sub(
+        r"^(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s*\d{4}\s*",
+        "",
+        title,
+        flags=re.I,
+    ).strip()
     title = re.sub(r"^download\s+", "", title, flags=re.I).strip()
     return " ".join(title.split())
 
@@ -620,6 +634,249 @@ async def search_mkvdrama(query: str, limit: int = 6) -> List[MovieItem]:
     return parse_mkvdrama_cards(html, base_url, limit=limit)
 
 
+async def search_fourkhdhub(query: str, limit: int = 6) -> List[MovieItem]:
+    """Search 4K-HDHub for 4K & UHD movies and series."""
+    base_url = (FOURKHDHUB_URL or "https://4khdhub.one").rstrip("/")
+    search_url = f"{base_url}/?s={quote_plus(query)}"
+    html = await fetch_html(search_url, timeout=10)
+    if not html:
+        return []
+
+    items = []
+    seen = set()
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        links = soup.find_all("a", href=re.compile(r"-(movie|series)-\d+/?$"))
+        for a in links:
+            href = a.get("href", "")
+            url = urljoin(base_url, href)
+            if url in seen:
+                continue
+
+            img = a.find("img")
+            poster = None
+            if img:
+                poster = img.get("src") or img.get("data-src")
+                if poster:
+                    poster = urljoin(base_url, poster)
+
+            raw_title = ""
+            if img and img.get("alt"):
+                raw_title = img["alt"].strip()
+            elif a.get("aria-label"):
+                raw_title = a["aria-label"].replace("details", "").strip()
+            else:
+                raw_title = a.get_text(strip=True)
+
+            if not raw_title:
+                continue
+
+            badges = [b.get_text(strip=True) for b in a.select(".quality-badge, .movie-card-format")]
+            qualities = []
+            for b in badges:
+                if any(q in b.upper() for q in ("4K", "2160P", "1080P", "720P", "HDR", "DV", "HEVC", "REMUX")):
+                    if b.upper() not in qualities:
+                        qualities.append(b.upper())
+            quality_str = " | ".join(qualities) if qualities else "4K / HD"
+
+            text = a.get_text(" ", strip=True)
+            ep_match = re.search(r"(S\d+(?:-S\d+)?\s*(?:EP?\d+)?)", text, re.I)
+            if ep_match and ep_match.group(1) not in raw_title:
+                raw_title = f"{raw_title} ({ep_match.group(1)})"
+
+            raw_title = _clean_post_title(raw_title)
+            seen.add(url)
+            items.append(
+                MovieItem(
+                    site="4K-HDHub",
+                    title=raw_title,
+                    url=url,
+                    poster=poster,
+                    quality=quality_str,
+                )
+            )
+            if len(items) >= limit:
+                break
+    except Exception as e:
+        LOGGER.debug(f"4K-HDHub search error: {e}")
+    return items
+
+
+async def search_mlsbd(query: str, limit: int = 6) -> List[MovieItem]:
+    """Search MLSBD for Bengali, Hindi & Hollywood releases."""
+    base_url = "https://mlsbd.co"
+    search_url = f"{base_url}/?s={quote_plus(query)}"
+    html = await fetch_html(search_url, timeout=10)
+    if not html:
+        return []
+
+    items = []
+    seen = set()
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            if not href.startswith("https://mlsbd.co/") and not href.startswith("/"):
+                continue
+            url = urljoin(base_url, href)
+            parts = [p for p in urlparse(url).path.split("/") if p]
+            if len(parts) != 1 or parts[0] in (
+                "author",
+                "category",
+                "tag",
+                "how-to-download",
+                "about-us",
+                "contact-us",
+                "review-news",
+                "reviews",
+                "stream",
+                "dmca-information",
+            ):
+                continue
+
+            title = a.get_text(strip=True)
+            if not title or len(title) < 5 or any(ign in title.lower() for ign in ("how to download", "join us", "stream")):
+                continue
+
+            if url in seen:
+                continue
+            seen.add(url)
+
+            quality = mlsbd_qualities(title)
+            items.append(
+                MovieItem(
+                    site="MLSBD",
+                    title=_clean_post_title(title),
+                    url=url,
+                    poster=None,
+                    quality=quality,
+                )
+            )
+            if len(items) >= limit:
+                break
+    except Exception as e:
+        LOGGER.debug(f"MLSBD search error: {e}")
+    return items
+
+
+SITE_SEARCHERS = {
+    "moviesmod": {
+        "name": "MoviesMod",
+        "emoji": "⚡",
+        "func": search_moviesmod,
+        "enabled": ENABLE_MOVIESMOD,
+    },
+    "vegamovies": {
+        "name": "VegaMovies",
+        "emoji": "⭐",
+        "func": search_vegamovies,
+        "enabled": ENABLE_VEGAMOVIES,
+    },
+    "hdhub4u": {
+        "name": "HDHub4u",
+        "emoji": "🎯",
+        "func": search_hdhub4u,
+        "enabled": ENABLE_HDHUB4U,
+    },
+    "fourkhdhub": {
+        "name": "4K-HDHub",
+        "emoji": "💎",
+        "func": search_fourkhdhub,
+        "enabled": ENABLE_FOURKHDHUB,
+    },
+    "bollyflix": {
+        "name": "BollyFlix",
+        "emoji": "🎬",
+        "func": search_bollyflix,
+        "enabled": ENABLE_BOLLYFLIX,
+    },
+    "cinevood": {
+        "name": "CineVood",
+        "emoji": "🍿",
+        "func": search_cinevood,
+        "enabled": ENABLE_CINEVOOD,
+    },
+    "katmoviehd": {
+        "name": "KatMovieHD",
+        "emoji": "🦁",
+        "func": search_katmoviehd,
+        "enabled": ENABLE_KATMOVIEHD,
+    },
+    "dotmovies": {
+        "name": "DotMovies",
+        "emoji": "🎪",
+        "func": search_dotmovies,
+        "enabled": ENABLE_DOTMOVIES,
+    },
+    "extraflix": {
+        "name": "ExtraFlix",
+        "emoji": "🍿",
+        "func": search_extraflix,
+        "enabled": ENABLE_EXTRAFLIX,
+    },
+    "filmycab": {
+        "name": "FilmyCab",
+        "emoji": "🚕",
+        "func": search_filmycab,
+        "enabled": ENABLE_FILMYCAB,
+    },
+    "tamilmv": {
+        "name": "1TamilMV",
+        "emoji": "🐯",
+        "func": search_tamilmv,
+        "enabled": ENABLE_TAMILMV,
+    },
+    "cloudmoviez": {
+        "name": "CloudMoviez",
+        "emoji": "🎬",
+        "func": search_cloudmoviez,
+        "enabled": ENABLE_CLOUDMOVIEZ,
+    },
+    "mkvdrama": {
+        "name": "MkvDrama",
+        "emoji": "🌸",
+        "func": search_mkvdrama,
+        "enabled": ENABLE_MKVDRAMA,
+    },
+    "katdrama": {
+        "name": "KatDrama",
+        "emoji": "🎭",
+        "func": search_katdrama,
+        "enabled": ENABLE_KATDRAMA,
+    },
+    "toonworld": {
+        "name": "ToonWorld",
+        "emoji": "🌀",
+        "func": search_toonworld,
+        "enabled": ENABLE_TOONWORLD,
+    },
+    "mlsbd": {
+        "name": "MLSBD",
+        "emoji": "🇧🇩",
+        "func": search_mlsbd,
+        "enabled": ENABLE_MLSBD,
+    },
+}
+
+
+async def search_single_site(site_key: str, query: str, limit: int = 8) -> List[MovieItem]:
+    """Execute search on a specific site."""
+    query = query.strip()
+    if not query:
+        return []
+    if site_key == "all":
+        return await search_all_sites(query, max_total=limit * 2)
+    entry = SITE_SEARCHERS.get(site_key)
+    if not entry:
+        LOGGER.warning(f"Unknown site key for search: {site_key}")
+        return []
+    try:
+        return await entry["func"](query, limit=limit)
+    except Exception as e:
+        LOGGER.error(f"Error searching on {site_key}: {e}")
+        return []
+
+
 async def search_all_sites(query: str, max_total: int = 24) -> List[MovieItem]:
     """Search across all active movie & series websites concurrently."""
     query = query.strip()
@@ -627,30 +884,9 @@ async def search_all_sites(query: str, max_total: int = 24) -> List[MovieItem]:
         return []
 
     tasks = []
-    if ENABLE_DOTMOVIES:
-        tasks.append(search_dotmovies(query))
-    if ENABLE_BOLLYFLIX:
-        tasks.append(search_bollyflix(query))
-    if ENABLE_CINEVOOD:
-        tasks.append(search_cinevood(query))
-    if ENABLE_TOONWORLD:
-        tasks.append(search_toonworld(query))
-    if ENABLE_KATMOVIEHD:
-        tasks.append(search_katmoviehd(query))
-    if ENABLE_KATDRAMA:
-        tasks.append(search_katdrama(query))
-    if ENABLE_MKVDRAMA:
-        tasks.append(search_mkvdrama(query))
-    if ENABLE_MOVIESMOD:
-        tasks.append(search_moviesmod(query))
-    if ENABLE_EXTRAFLIX:
-        tasks.append(search_extraflix(query))
-    if ENABLE_HDHUB4U:
-        tasks.append(search_hdhub4u(query))
-    if ENABLE_VEGAMOVIES:
-        tasks.append(search_vegamovies(query))
-    if ENABLE_FILMYCAB:
-        tasks.append(search_filmycab(query))
+    for s_key, s_data in SITE_SEARCHERS.items():
+        if s_data.get("enabled", True):
+            tasks.append(s_data["func"](query))
 
     if not tasks:
         LOGGER.warning("No search sources enabled!")
